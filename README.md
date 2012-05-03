@@ -58,7 +58,9 @@ The bundle format:
 How to use?
 ---------------------
 Write:
-```
+```  cpp  write.cc
+#include "bundle/bundle.h"
+
   char *file_buffer = "content of file";
   const int length = strlen(file_buffer);
 
@@ -77,7 +79,7 @@ The url like:
 
 
 Read:
-```
+```  cpp  read.cc
   std::string buf;
   int ret = bundle::Reader::Read("p/20120424/E6/SE/Zb1/C5zWed.jpg", &buf, "/mnt/mfs");
 ```
@@ -115,7 +117,7 @@ location /p/ {
 ```
 
 -  Save content below as file, and open in browser:  
-```
+``` html form.html
 <form action="http://127.0.0.1/bundle"
     enctype="multipart/form-data"
     method="post">
