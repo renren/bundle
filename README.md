@@ -94,9 +94,7 @@ More
 ----------------------------
 Use nginx and fastcgi provide web access.
 
-Running in fastcgi as backend of Nginx.
-
--  Start the fastcgi as daemon  
+-  Start the fastcgi as daemon, this is backend of nginx  
 src/bundle/bundled -p 9000 -F 40 -d /mnt/mfs
 
 -  Change Ningx configure file, add:  
@@ -110,18 +108,17 @@ location ~ bundle {
 
 # read
 location /p/ {
-    client_max_body_size 20M;                                                        
     fastcgi_pass 127.0.0.1:9000;
     include fastcgi_params;
 }
 </pre>
 
--  Save content below, and open it in browser:  
+-  Save content below as file, and open in browser:  
 <pre>
 <form action="http://127.0.0.1/bundle"
     enctype="multipart/form-data"
     method="post">
-  <input type="file" name="name_of_files"><br/>
+  <input type="file" name="name_of_files" /><br/>
   <input type=submit />
 </form>
 </pre>
