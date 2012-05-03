@@ -105,7 +105,8 @@ location ~ bundle {
     fastcgi_pass 127.0.0.1:9000;
     include fastcgi_params;
 }
-
+```
+```
 # read
 location /p/ {
     fastcgi_pass 127.0.0.1:9000;
