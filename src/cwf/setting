@@ -1,0 +1,73 @@
+################################
+# 1) 让配置立即生效
+# 减少处于 TIME_WAIT 的socket
+sysctl -w net.ipv4.tcp_tw_reuse=1
+sysctl -w net.ipv4.tcp_tw_recycle=1
+
+# 减少突然太多连接产生时失败的可能
+sysctl -w net.core.somaxconn=50000
+sysctl -w "net.ipv4.ip_local_port_range=1024 65536"
+
+# 减少 keepalive 的时间
+# 这样60 + 3 * 10后就会断开连接
+net.ipv4.tcp_keepalive_time=60
+net.ipv4.tcp_keepalive_probes=3
+net.ipv4.tcp_keepalive_intvl=10
+
+
+# 2) 更改 /etc/sysctl.conf
+# xce setting, for nginx and fastcgi applications
+net.core.somaxconn=50000
+net.ipv4.ip_local_port_range=1024 65536
+net.ipv4.tcp_tw_reuse=1
+net.ipv4.tcp_tw_recycle=1
+net.ipv4.tcp_keepalive_time=60
+net.ipv4.tcp_keepalive_probes=3
+net.ipv4.tcp_keepalive_intvl=10
+# for CLOSE_WAIT
+net.ipv4.tcp_fin_timeout=30
+
+# for memory
+net.core.rmem_max=16777216
+net.ipv4.tcp_rmem=409600  8738000  419430400
+net.ipv4.tcp_max_orphans=800000
+net.core.wmem_max=16777216
+net.ipv4.tcp_wmem=409600  8738000  419430400
+
+
+# 注意 原来配置文件已经有 net.ipv4.tcp_keepalive_time
+
+# 3) 立即让 sysctl.conf 生效，运行
+sysctl -p
+
+# 4) 查看当前sockstat，不要使用 netstat
+cat /proc/net/sockstat
+
+# 5) 确保redhat的缺省配置没有被更改
+net.ipv4.tcp_max_syn_backlog=4096
+net.ipv4.tcp_fin_timeout=15
+fs.file-max=752548
+
+################################
+# 每个进程打开最大文件数
+# vi /etc/security/limits.conf
+* soft nofile 65535
+* hard nofile 65535
+
+
+
+################################
+$upstream_addr $upstream_status $upstream_response_time $request_time
+
+fastcgi_buffer_size 64k;
+fastcgi_buffers 4 64k;
+
+server 127.0.0.1:9000 max_fails=3 fail_timeout=1s;
+
+/feedretrive.do
+ Cache-Control	no-cache
+ Pragma	no-cache
+ Expires	Thu, 01 Jan 1970 00:00:00 GMT
+
+gzip on;
+

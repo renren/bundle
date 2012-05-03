@@ -1,0 +1,18 @@
+boost::cgi's svn
+http://svn.boost.org/svn/boost/sandbox/SOC/2007/cgi/
+
+w3c cgicc-3.2
+
+cppcms's svn
+http://cppcms.svn.sourceforge.net/svnroot/cppcms/cms/trunk
+
+fastcgi++-1.1
+
+fcgi-2.4.0
+
+fcgi for REST's svn
+http://nanogear.googlecode.com/svn/trunk
+
+util:
+google url's svn
+http://google-url.googlecode.com/svn/trunk
