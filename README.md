@@ -98,7 +98,7 @@ Use nginx and fastcgi provide web access.
 src/bundle/bundled -p 9000 -F 40 -d /mnt/mfs
 
 -  Change Ningx configure file, add:  
-<pre>
+```
 # upload
 location ~ bundle {
     client_max_body_size 20M;
@@ -111,14 +111,14 @@ location /p/ {
     fastcgi_pass 127.0.0.1:9000;
     include fastcgi_params;
 }
-</pre>
+```
 
 -  Save content below as file, and open in browser:  
-<pre>
+```
 <form action="http://127.0.0.1/bundle"
     enctype="multipart/form-data"
     method="post">
   <input type="file" name="name_of_files" /><br/>
   <input type=submit />
 </form>
-</pre>
+```
