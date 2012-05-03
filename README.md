@@ -77,7 +77,7 @@ Write:
   writer->Release(); // or delete writer
 ```
 
-The url like:
+The url like:  
   p/20120424/E6/SE/Zb1/C5zWed.jpg
 
 
