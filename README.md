@@ -120,7 +120,7 @@ location /p/ {
 ```
 
 -  Save content below as file, and open in browser:  
-``` html form.html
+```
 <form action="http://127.0.0.1/bundle"
     enctype="multipart/form-data"
     method="post">
