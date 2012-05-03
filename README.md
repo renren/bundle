@@ -4,6 +4,7 @@ Bundle is a storage solution for huge mount of small files.
 
 As known native filesytem is very limited in the secenario. Common DFS also failed.
 
+[Moosefs](http://www.moosefs.org) is our recommendation.
 
 How it works?
 ---------------------
@@ -95,10 +96,11 @@ Use nginx and fastcgi provide web access.
 
 Running in fastcgi as backend of Nginx.
 
--  Start the fastcgi as daemon
+-  Start the fastcgi as daemon  
 src/bundle/bundled -p 9000 -F 40 -d /mnt/mfs
 
--  Change Ningx configure file like:
+-  Change Ningx configure file, add:  
+<pre>
 # upload
 location ~ bundle {
     client_max_body_size 20M;
@@ -112,12 +114,14 @@ location /p/ {
     fastcgi_pass 127.0.0.1:9000;
     include fastcgi_params;
 }
+</pre>
 
--  Open form.html in browser:
+-  Save content below, and open it in browser:  
+<pre>
 <form action="http://127.0.0.1/bundle"
     enctype="multipart/form-data"
     method="post">
   <input type="file" name="name_of_files"><br/>
   <input type=submit />
 </form>
-
+</pre>
