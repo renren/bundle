@@ -47,7 +47,8 @@ Currently, [Moosefs](http://www.moosefs.org) is our recommendation.
 
 How it works?
 ---------------------
-Bundle small files to a single file. Access them via bundle file name, offset and size.
+Bundle helps packing a lot of small files to a single large file. Later, access them by bundle filename, offset and
+size.
 
 For example:
 <pre>
@@ -68,7 +69,7 @@ For example:
 -rw-rw-r-- 1 root root  2.0G Mar 31 20:38 0000003d
 </pre>
 
-The huge file(bundle) p/20120331/00000001/00000039/00000039 size is 2.0G, contain thounds of small file.
+The large file (bundle) p/20120331/00000001/00000039/00000039 size is 2.0G, contain thounds of small file.
 
 The bundle format:
 <pre>
@@ -134,7 +135,7 @@ gyp --depth=. --toplevel-dir=. -Dlibrary=static_library gyp/bundle.gyp
 make
 ```
 
-More
+Deploy web access
 ----------------------------
 Use nginx and fastcgi provide web access.
 
