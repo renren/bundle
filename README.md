@@ -2,7 +2,7 @@ Why Bundle?
 ---------------------
 Bundle is a storage solution for huge amount of small files.
 
-Nearly all native filesytems are very limited in the too-many-small-files secenario, and distributed filesystems
+Nearly all native filesytems are very limited in the too-many-small-files scenario, and distributed filesystems
 (DFS) are optimized for large files.
 
 The most serious problem with titanic amount of small files storage is data transition. Data transition occurs
@@ -11,7 +11,7 @@ when
 - Restore data from backup
 - Restore duplication level when replica or backup failed
 
-When store small files as is in tranditional filesystem or distributed filesystem, each file has its seperate meta
+When store small files as is in traditional filesystem or distributed filesystem, each file has its seperate meta
 data. So, during data transition, for every file to be duplicated, backuped or restored, operation to meta data and
 data itself are needed, and this contributes to titanic amount of random access, thus performance is seriously hurt,
 and transition is very very very slow.
@@ -32,7 +32,7 @@ only be written once.
 Then why Bundle?
 
 Haystack is not open sourced. TFS is open source, but it lacks of customized URI prefix. For URI pattern based 
-CDN tuning, customized URI prefix is neccessary.
+CDN tuning, customized URI prefix is necessary.
 
 Bundle addresses this very issue by enabling customizable prefix in file URI, currently date time, but other
 pattern will be added if needed.
@@ -69,7 +69,7 @@ For example:
 -rw-rw-r-- 1 root root  2.0G Mar 31 20:38 0000003d
 </pre>
 
-The large file (bundle) p/20120331/00000001/00000039/00000039 size is 2.0G, contain thounds of small file.
+The large file (bundle) p/20120331/00000001/00000039/00000039 size is 2.0G, contain thousands of small file.
 
 The bundle format:
 <pre>
@@ -139,7 +139,7 @@ Deploy web access
 ----------------------------
 Use nginx and fastcgi provide web access.
 
--  Start the fastcgi as daemon, this is backend of nginx  
+-  Start the fastcgi as daemon, this is back-end of nginx  
 src/bundle/bundled -p 9000 -F 40 -d /mnt/mfs
 
 -  Change Ningx configure file, add:  
