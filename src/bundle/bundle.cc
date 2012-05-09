@@ -7,46 +7,134 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include <vector>
 #include <sstream>
+
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 
+#include "base3/mkdirs.h"
+#include "base3/pathops.h"
+// #include "base3/atomicops.h"
+
 #include "bundle/murmurhash2.h"
 #include "bundle/sixty.h"
 #include "bundle/filelock.h"
-#include "base3/mkdirs.h"
-#include "base3/pathops.h"
 
 #define USE_CACHED_IO 1
 
 #ifdef OS_WIN
-#include <process.h>
-#include <io.h>
+  #include <process.h>
+  #include <io.h>
 
-#define getpid _getpid
-#define access _access
-#define snprintf _snprintf
-#define F_OK 04
+  #define getpid _getpid
+  #define access _access
+  #define snprintf _snprintf
+  #define F_OK 04
 
-// hack
-#define USE_CACHED_IO 0
+  // hack
+  #define USE_CACHED_IO 0
 #endif
 
 namespace bundle {
 
+bool ExtractSimple(const char *url, Info *info) {
+    std::string three_part(url);
+
+    std::vector<std::string> vs;
+    boost::split(vs, three_part, boost::is_any_of(",/."));
+
+    if (vs.size() != 3)
+      return false;
+
+    if (info) {
+      info->name = vs[0];
+      info->offset = atol(vs[1].c_str());
+      info->size = atol(vs[2].c_str());
+    }
+    return true;
+}
+
+std::string BuildSimple(const Info &info) {
+  std::ostringstream ostem;
+  if (info.id != -1)
+    ostem << info.id;
+  else 
+    ostem << info.name;
+
+  ostem << "," 
+    << info.offset << ","
+    << info.size;
+  return ostem.str();
+}
+
+bool ExtractNormal(const char *url, Info *info) {
+  std::string u(url);
+  std::string::size_type dot = u.rfind('.');
+  std::string::size_type last_slash = u.rfind('/');
+  if (std::string::npos == dot || std::string::npos == dot)
+    return false;
+
+  std::string three_part = u.substr(last_slash + 1, dot - last_slash - 1);
+
+  std::vector<std::string> vs;
+  boost::split(vs, three_part, boost::is_any_of(",/."));
+
+  if (vs.size() != 3)
+    return false;
+
+  if (info) {
+    info->name = vs[0];
+    info->offset = atol(vs[1].c_str());
+    info->size = atol(vs[2].c_str());
+  }
+
+  return true;
+}
+
+std::string BuildNormal(const Info &info) {
+  uint32_t hash = 0;
+  {
+    std::ostringstream ostem;
+    ostem << info.prefix << "/"
+      << info.name << "_" 
+      << info.id << "_"
+      << info.size
+      << info.postfix;
+    std::string str = ostem.str();
+    hash = MurmurHash2(str.c_str(), str.size(), 0);
+  }
+
+  std::ostringstream ostem;
+  ostem << info.prefix << "/"
+    << ToSixty(info.id) << "_" 
+    << ToSixty(info.offset) << "_"
+    << ToSixty(info.size) << "_"
+    << ToSixty(hash)
+    << info.postfix;
+  return ostem.str();
+}
+
 // not thread-safe, test purpose
 Setting g_default_setting = {
-  2u * 1024 * 1024 * 1024, // 2G
-  20000, // 200T/400M
+  kMaxBundleSize,
+  kBundleCountPerDay,
   50,
-  4000,
+  400,
+  &ExtractSimple, &BuildSimple
+  // &ExtractNormal, &BuildNormal
 };
 
 void SetSetting(const Setting& setting) {
   g_default_setting = setting;
 }
 
+
+/*
 // bundle_name = prefix + "/" + bid_str
 // bundle_file = storage + bundle_name
 bool ExtractSimple(const char *url, std::string *bundle_name
@@ -137,6 +225,7 @@ std::string BuildSimple(uint32_t bid, size_t offset, size_t length
     << ToSixty(a) << postfix;
   return ostem_url.str();
 }
+*/
 
 // avoid too many files in one directory
 std::string Bid2Filename(uint32_t bid) {
@@ -153,14 +242,17 @@ int Reader::Read(const std::string &url, std::string *buf
     return -1;
   }
 
-  std::string bundle_name;
-  size_t offset, length;
-  if (extract(url.c_str(), &bundle_name, &offset, &length)) {
-    char *content = new char[length];
+  if (!extract)
+    extract = g_default_setting.extract;
+
+  std::string bundle_name; // TODO:
+  Info info;
+  if (extract(url.c_str(), &info)) {
+    char *content = new char[info.size];
     size_t readed = 0;
     char ud[kUserDataSize] = {0};
-    int ret = Read(bundle_name.c_str(), offset, length
-      , content, length, &readed, storage, ud, kUserDataSize);
+    int ret = Read(info.name.c_str(), info.offset, info.size
+      , content, info.size, &readed, storage, ud, kUserDataSize);
 
     if (buf)
       *buf = std::string(content, readed);
@@ -182,10 +274,11 @@ struct AutoFile {
   FILE *f_;
 };
 
+
 int Reader::Read(const char *bundle_name, size_t offset, size_t length
   , char *buf, size_t buf_size, size_t *readed, const char *storage
   , char *user_data, size_t user_data_size) {
-
+#if 0
   if (user_data && user_data_size < kUserDataSize)
       return EINVAL;
 
@@ -231,12 +324,15 @@ int Reader::Read(const char *bundle_name, size_t offset, size_t length
 
   if (user_data)
     memcpy(user_data, header.user_data_, kUserDataSize);
-
+#endif
   return 0;
 }
 
+
 std::string Writer::EnsureUrl() const {
-  return builder_(bid_, offset_, length_, prefix_.c_str(), postfix_.c_str());
+  if (builder_)
+    return builder_(info_);
+  return "";
 }
 
 int Writer::Write(const char *buf, size_t buf_size
@@ -248,7 +344,7 @@ int Writer::Write(const char *buf, size_t buf_size
 
 int Writer::Write(const std::string &url, const char *buf, size_t buf_size
   , size_t *written, const char *user_data, size_t user_data_size) const {
-  return Write(filename_, offset_
+  return Write(filename_, info_.offset
       , url, buf, buf_size
       , written, user_data, user_data_size);
 }
@@ -367,8 +463,8 @@ bool CreateBundle(const char *filename) {
 }
 
 Writer* Writer::Allocate(const char *prefix, const char *postfix
-    , size_t length, const char *storage
-    , const char *lock_path, BuildUrl builder) {
+  , size_t size, const char *storage
+  , const char *lock_path, BuildUrl builder) {
   if ('/' == prefix[0])
     prefix = prefix+1;
 
@@ -383,19 +479,20 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     lock_dir = lock_path;
 
   int loop_count = 0;
-  while (1) {
-    // 如果超过 kBundleCountPerDay 就，再分配 100 个
+  while (true) {
+    // if last_id_ exceed kBundleCountPerDay, random select one from another 100
     loop_count ++;
     if (loop_count > g_default_setting.bundle_count_per_day) {
       last_id_ = g_default_setting.bundle_count_per_day + rand() % 100; // TODO:
     }
+
     // 1 check file
     std::string bundle_root = base::PathJoin(storage, prefix);
     std::string bundle_file = base::PathJoin(bundle_root, Bid2Filename(last_id_));
     struct stat stat_buf;
     int stat_ret;
     if ((0 == (stat_ret = stat(bundle_file.c_str(), &stat_buf))) &&
-        (stat_buf.st_size + Align1K(kFileHeaderSize + length))
+        (stat_buf.st_size + Align1K(kFileHeaderSize + size))
           > g_default_setting.max_bundle_size) {
       last_id_ ++;
       continue;
@@ -423,7 +520,7 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     // 3 locked
     size_t offset;
     if ((-1 == stat_ret) && (stat_errno == ENOENT)) {
-      // get parent dir from bundle_file
+      // get parent dir
       std::string parent = base::Dirname(bundle_file);
       // store dir check
       if (-1 == access(parent.c_str(), F_OK)) {
@@ -455,16 +552,20 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     Writer * w = new Writer();
     w->filename_ = bundle_file;
     w->filelock_ = filelock;
-    w->builder_ = builder;
+    if (builder)
+      w->builder_ = builder; // TODO:
+    else
+      w->builder_ = g_default_setting.build;
 
-    w->prefix_ = prefix;
-    w->offset_ = offset;
-    w->length_ = length;
-    w->postfix_ = postfix;
-    w->bid_ = last_id_;
+    w->info_.id = last_id_;
+    w->info_.offset = offset;
+    w->info_.size = size;
+
+    w->info_.prefix = prefix;
+    w->info_.postfix = postfix;
     
     return w;
-  } // while(1)
+  } // while(true)
 
   return NULL;
 }

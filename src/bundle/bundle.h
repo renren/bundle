@@ -2,7 +2,6 @@
 #define BUNDLE_BUNDLE_H__
 
 #include <stdint.h>
-#include <time.h>
 #include <string>
 
 namespace bundle {
@@ -14,12 +13,14 @@ struct FileHeader {
     kMAGIC_CODE = 0xE4E4E4E4,
     kVERSION = 1,
     kFILE_NORMAL = 1,
+    kFILE_REDIRECT = 2,
+    kFILE_DELETE = 4,
   };
 
   uint32_t magic_;
-  uint32_t length_; // content length
   uint32_t version_;
   uint32_t flag_;
+  uint32_t length_; // content length
   char url_[256];
   char user_data_[512 - 256 - 4*4];
 };
@@ -35,32 +36,45 @@ enum {
   kMaxBundleSize = 2u * 1024 * 1024 * 1024u,  // 2G
 };
 
+// URL util
+struct Info {
+  int id;
+  std::string name;
+
+  size_t offset;
+  size_t size;
+  std::string datetime; // 20120512/1350
+  std::string prefix, postfix;
+};
+
+typedef bool (*ExtractUrl)(const char *, Info *);
+
+typedef std::string (*BuildUrl)(const Info &);
+
+#if 0
+// 1 simple
+// path-to-bundle,offset,size.jpg
+//
+bool ExtractSimple(const char *url, Info *);
+std::string BuildSimple(const Info &);
+
+// 2 with date prefix
+// date/path-to-bundle,offset,size.jpg
+bool ExtractNormal(const char *url, Info *);
+std::string BuildNormal(const Info &);
+#endif
+
 struct Setting {
   size_t max_bundle_size;
   int bundle_count_per_day;
   int file_count_level_1;
   int file_count_level_2;
+
+  ExtractUrl extract;
+  BuildUrl build;
 };
 
 void SetSetting(const Setting& setting);
-
-// const char *url, std::string *bundle_name, size_t *offset, size_t *length
-typedef bool (*ExtractUrl)(const char *, std::string *, size_t *,size_t *);
-
-// uint32_t bid, size_t offset, size_t length, const char *prefix, const char *postfix
-typedef std::string (*BuildUrl)(uint32_t, size_t, size_t, const char *
-  , const char *);
-
-
-// TODO: uint32_t bid => string bundle_name, it's weired!
-
-bool ExtractSimple(const char *url, std::string *bundle_name, size_t *offset
-  , size_t *length);
-
-std::string BuildSimple(uint32_t bid, size_t offset, size_t length
-  , const char *prefix, const char *postfix);
-
-std::string Bid2Filename(uint32_t bid);
 
 /*
 example:
@@ -72,7 +86,7 @@ class Reader {
 public:
   // string as buffer, it's not the best, but simple enough
   static int Read(const std::string &url, std::string *buf, const char *storage
-    , ExtractUrl extract = &ExtractSimple, std::string *user_data = 0);
+    , ExtractUrl extract = 0, std::string *user_data = 0);
 
   // if OK return 0, else return error
   static int Read(const char *bundle_file, size_t offset, size_t length
@@ -89,13 +103,14 @@ private:
   char *file_buffer = "content of file";
   const int length = strlen(file_buffer);
 
-  Writer *writer = Writer::Allocate("p/20120512", length, "/mnt/mfs");
+  Writer *writer = Writer::Allocate("p/20120512", ".jpg", length, "/mnt/mfs");
+
+  std::cout << "write success, url:" << writer->EnsureUrl() << std::endl;
+  // p/20120512/1_2_3_4.jpg
 
   size_t written;
   int ret = writer->Write(file_buffer, length, &written);
-  if (0 == ret)
-  std::cout << "write success, url:" << writer->EnsureUrl() << std::endl;
-
+  
   writer->Release(); // or delete writer
 */
 
@@ -103,8 +118,8 @@ class Writer {
 public:
   // lock_path default is storage/.lock
   static Writer* Allocate(const char *prefix, const char *postfix
-    , size_t length, const char *storage
-    , const char *lock_path = 0, BuildUrl builder = &BuildSimple);
+    , size_t size, const char *storage
+    , const char *lock_path = 0, BuildUrl builder = 0);
 
   int Write(const char *buf, size_t buf_size
     , size_t *written = 0, const char *user_data = 0, size_t user_data_size = 0) const;
@@ -116,17 +131,8 @@ public:
 
   void Release();
 
-  const std::string & bundle_file() const {
-    return filename_;
-  }
-  uint32_t bundle_id() const {
-    return bid_;
-  }
-  size_t offset() const {
-    return offset_;
-  }
-  size_t length() const {
-    return length_;
+  const Info & info() const {
+    return info_;
   }
   ~Writer() {
     Release();
@@ -141,8 +147,10 @@ private:
 
   // forbidden create outside
   Writer()
-      : filelock_(0), builder_(0), bid_(0), offset_(0), length_(0)
+      : filelock_(0), builder_(0)
       {}
+
+  int GetNextBundle(const std::string& storage);
 
   // non-copy
   Writer(const Writer&);
@@ -152,12 +160,7 @@ private:
   FileLock *filelock_;
 
   BuildUrl builder_;
-
-  std::string prefix_, postfix_;
-  uint32_t bid_;
-
-  size_t offset_;
-  size_t length_;
+  Info info_;
 };
 
 // TODO: move in .cc

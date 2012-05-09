@@ -80,9 +80,9 @@ class FileLock {
 
 private:
   std::string lockfile_;
-  bool locked_;
+  int timeout_;
   int delay_;
-  // int fd_;
+  bool locked_;
 };
 
 }//namespace bundle

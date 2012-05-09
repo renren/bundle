@@ -28,7 +28,7 @@
         'cwf',
         'libfcgi',
         'base3.gyp:base3',
-        'google-ctemplate.gyp:ctemplate',
+        #'google-ctemplate.gyp:ctemplate',
         '../src/testing/gtest.gyp:gtest_main',
       ],
       'conditions':[
@@ -103,9 +103,9 @@
       'dependencies': [
         'cwf',
         'cwfmain',
-        'google-ctemplate.gyp:ctemplate', 
+        #'google-ctemplate.gyp:ctemplate', 
       ],
-      'export_dependent_settings': ['google-ctemplate.gyp:ctemplate'],
+      #'export_dependent_settings': ['google-ctemplate.gyp:ctemplate'],
       'conditions':[
         ['OS=="linux"', {'libraries': ['-lboost_system', '-lboost_thread', '-lpthread'] }],
         ['OS=="win"', {'libraries': ['ws2_32.lib'] }],

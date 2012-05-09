@@ -55,6 +55,26 @@
       ],
     },
     {
+      'target_name': 'bundle_api_unittest',
+      'type': 'executable',
+      'msvs_guid': '11384258-7F84-5DAE-8AB2-655600A90963',
+      'dependencies': [
+        'gtest.gyp:gtest_main',
+        'bundle',
+      ],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_system', '-lpthread'] }],
+        ['OS=="win"', {'libraries': [] }],
+      ],
+      'sources': [
+'../src/bundle/bundle_api_test.cc',
+      ],
+      'include_dirs': [
+        '../src',
+        '../src/testing/gtest/include'
+      ],
+    },
+    {
       'target_name': 'bundle',
       'type': 'static_library',
       'msvs_guid': 'B0FA2853-A0D3-44B8-BDE0-E8B89D372D16',
@@ -67,8 +87,8 @@
 '../src/bundle/bundle.h',
 '../src/bundle/bundle.cc',
 '../src/bundle/tenandsixty.h',
-'../src/bundle/MurmurHash2.h',
-'../src/bundle/MurmurHash2.cc',
+'../src/bundle/murmurhash2.h',
+'../src/bundle/murmurhash2.cc',
 '../src/base3/pathops.h',
 '../src/base3/pathops.cc',
 '../src/base3/mkdirs.h',
