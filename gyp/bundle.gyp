@@ -107,7 +107,7 @@
         'bundle',
       ],
       'conditions':[
-        ['OS=="linux"', {'libraries': ['-lboost_system', '-lboost_thread', '-lpthread'] }],
+        ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_exception', '-lboost_system', '-lpthread'] }],
         ['OS=="win"', {'libraries': ['ws2_32.lib'] }],
       ],
       'sources': [

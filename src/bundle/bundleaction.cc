@@ -79,12 +79,6 @@ struct ReadAction : public cwf::BaseAction {
 
     // ugly 3
     url = url.substr(1);
-    bool f = ExtractSimple(url.c_str(), 0, 0, 0);
-    if (!f) {
-      response->header().set_status_code(cwf::HC_NOT_FOUND, "Not Found");
-      response->OutputHeader();
-      return cwf::HC_NOT_FOUND;
-    }
 
     std::string buf;
 
@@ -97,9 +91,9 @@ struct ReadAction : public cwf::BaseAction {
       response->header().Add(cwf::HH_CONTENT_LENGTH, sz);
       response->WriteRawWithHeader(buf.c_str(), buf.size());
     } else {
-      response->header().set_status_code(cwf::HC_INTERNAL_SERVER_ERROR, "Server Error");
+      response->header().set_status_code(cwf::HC_NOT_FOUND, "Not Found");
       response->OutputHeader();
-      return cwf::HC_INTERNAL_SERVER_ERROR;
+      return cwf::HC_NOT_FOUND;
     }
     return cwf::HC_OK;
   }
