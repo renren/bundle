@@ -179,100 +179,6 @@ void SetSetting(const Setting& setting) {
   g_default_setting = setting;
 }
 
-
-/*
-// bundle_name = prefix + "/" + bid_str
-// bundle_file = storage + bundle_name
-bool ExtractSimple(const char *url, std::string *bundle_name
-  , size_t *offset, size_t *length) {
-  if (!url) {
-    return false;
-  }
-  char* arr[6];
-  boost::scoped_array<char> url_buf(new char[strlen(url) + 1]);
-  strcpy(url_buf.get(), url);
-  char* p1;
-  char delim1 = '/';
-  int i;
-  //1
-  for (i = 4 ; i > 0; i--) {
-    if ((p1 = strrchr(url_buf.get(), delim1))) {
-      arr[i] = p1+1;
-      *p1 = '\0';
-    }
-    else
-      break;
-  }
-  if (i > 0) {
-    return false;
-  }
-  arr[0] = url_buf.get();
-  p1 = strchr(arr[4], '.');
-  arr[5] = p1 + 1;
-  *p1 = '\0';
-
-  //arr[4]= sixth(hash)
-  //arr[3]= sixty(length);arr[2]=sixty(offset); arr[1]=sixty(bid); arr[0]=prefix
-  uint32_t hash;
-  size_t length_s, offset_s, bid_s;
-  if (-1 == (hash = FromSixty(arr[4])))
-    return false;
-  if (-1 == (length_s = FromSixty(arr[3])))
-    return false;
-  if (-1 == (offset_s = FromSixty(arr[2])))
-    return false;
-  if (-1 == (bid_s = FromSixty(arr[1])))
-    return false;
-
-  //check
-  std::ostringstream ostem;
-  ostem << arr[0] << "/"
-    << std::ios::hex << bid_s << "/"
-    << std::ios::hex << offset_s << "/"
-    << std::ios::hex << length_s << "."
-    << arr[5];
-  std::string s = ostem.str();
-  if (hash == MurmurHash2(s.c_str(), s.size(), 0)) {
-    if (offset)  *offset = offset_s;
-    if (length)  *length = length_s;
-    if (bundle_name)
-      *bundle_name =base::PathJoin(arr[0], Bid2Filename(bid_s));
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-
-// hash = sixty(prefix/bid/offset/lengthpostfix)
-// prefix/sixty(bid)/sixty(offset)/sixty(length)/sixty(hash).postfix
-// fmn04/large/20110919/ K/BkUlRx3O/Dp0WdL.jpg
-// fmn05/xxx/x/20110930/ Gq/FH1PM2bygR/BzdJXz.jpg
-std::string BuildSimple(uint32_t bid, size_t offset, size_t length
-  , const char *prefix, const char *postfix) {
-  uint32_t a = 0;
-  std::ostringstream ostem;
-  ostem << prefix << "/"
-    << std::ios::hex << bid << "/"
-    << std::ios::hex << offset << "/"
-    << std::ios::hex << length
-    << postfix;
-  std::string s = ostem.str();
-  a = MurmurHash2(s.c_str(), s.size(), 0);
-
-  //a |= length << 32;
-  if (!(ToSixty(bid).size() > 0))
-    return std::string();
-  std::ostringstream ostem_url;
-  ostem_url << prefix << "/"
-    << ToSixty(bid) << "/"
-    << ToSixty(offset) << "/"
-    << ToSixty(length) << "/"
-    << ToSixty(a) << postfix;
-  return ostem_url.str();
-}
-*/
-
 // avoid too many files in one directory
 std::string Bid2Filename(uint32_t bid) {
   char sz[18]; //8+1+8+1
@@ -379,7 +285,6 @@ int Reader::Read(const char *filename, size_t offset, size_t length
   return 0;
 }
 
-
 std::string Writer::EnsureUrl() const {
   if (builder_)
     return builder_(info_);
@@ -423,7 +328,6 @@ int Writer::Write(const std::string &bundle_file, size_t offset
 #endif
 
   if (-1 == ret) {
-    // TODO: close(fd);
 #if !USE_CACHED_IO
     close(fd);
 #endif
@@ -471,8 +375,6 @@ snprintf(tm_buf, sizeof(tm_buf), "%04d%02d%02d",
   ts->tm_year + 1900, ts->tm_mon + 1, ts->tm_mday);
 #endif
 
-static int last_id_ = -1;
-
 bool CreateBundle(const char *filename) {
 #if USE_CACHED_IO
   FILE* fp = fopen(filename, "w+b");
@@ -513,13 +415,13 @@ bool CreateBundle(const char *filename) {
   return true;
 }
 
+static int last_id_ = -1;
 Writer* Writer::Allocate(const char *prefix, const char *postfix
   , size_t size, const char *storage
   , const char *lock_path, BuildUrl builder) {
   if ('/' == prefix[0])
     prefix = prefix+1;
 
-  // TODO: lock
   if (-1 == last_id_)
     last_id_ = getpid() % 10;
 
@@ -622,10 +524,8 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
 }
 
 void Writer::Release() {
-  if (filelock_) {
-    delete filelock_;
-    filelock_ = NULL;
-  }
+  delete filelock_;
+  filelock_ = NULL;
 }
 
 } // namespace bundle

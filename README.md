@@ -104,45 +104,47 @@ Include the file
 
 Write:
 ```
-  char *file_buffer = "content of file";
-  const int length = strlen(file_buffer);
+  const char *file_buffer = "content of file";
+  const int file_size = strlen(file_buffer);
 
-  Writer *writer = Writer::Allocate("p/20120512", length, "/mnt/mfs");
+  Writer *writer = Writer::Allocate("p/20120512", ".jpg", file_size, "/mnt/mfs");
+
+  std::cout << "url: " << writer->EnsureUrl() << std::endl;
 
   size_t written;
-  int ret = writer->Write(file_buffer, length, &written);
-  if (0 == ret)
-    std::cout << "write success, url:" << writer->EnsureUrl() << std::endl;
+  int ret = writer->Write(file_buffer, file_size, &written);
 
   writer->Release(); // or delete writer
 ```
 
-The url like:  
-  p/20120424/E6/SE/Zb1/C5zWed.jpg
+The url like:
+  p/20120512/4,2048,15.jpg
 
 
 Read:
 ```
   std::string buf;
-  int ret = bundle::Reader::Read("p/20120424/E6/SE/Zb1/C5zWed.jpg", &buf, "/mnt/mfs");
+  int ret = bundle::Reader::Read("p/20120512/4,2048,15.jpg", &buf, "/mnt/mfs");
 ```
 
 Build:
 ```
-git clone git://github.com/xiaonei/bundle.git
-cd bundle
+sudo apt-get install gyp
+git clone git://github.com/xiaonei/bundle.git bundle.git
+cd bundle.git
 gyp --depth=. --toplevel-dir=. -Dlibrary=static_library gyp/bundle.gyp
 make
+ls out/Default
 ```
 
 Deploy web access
 ----------------------------
 Use nginx and fastcgi provide web access.
 
--  Start the fastcgi as daemon, this is back-end of nginx  
-src/bundle/bundled -p 9000 -F 40 -d /mnt/mfs
+-  Start the daemon, this is fastcgi back-end of nginx  
+out/Default/bundled -p 9000 -F 40 -d /mnt/mfs
 
--  Change Ningx configure file, add:  
+-  Change Ningx configure file, add:
 ```
 # upload
 location ~ bundle {

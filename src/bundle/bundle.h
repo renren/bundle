@@ -53,18 +53,17 @@ typedef bool (*ExtractUrl)(const char *, Info *);
 
 typedef std::string (*BuildUrl)(const Info &);
 
-#if 0
 // 1 simple
-// path-to-bundle,offset,size.jpg
-//
+// prefix/bundle,offset,size.postfix
+// 
 bool ExtractSimple(const char *url, Info *);
 std::string BuildSimple(const Info &);
 
 // 2 with date prefix
-// date/path-to-bundle,offset,size.jpg
-bool ExtractNormal(const char *url, Info *);
-std::string BuildNormal(const Info &);
-#endif
+// prefix/bundle_offset_size_hash.postfix
+// 
+bool ExtractWithEncode(const char *url, Info *);
+std::string BuildWithEncode(const Info &);
 
 struct Setting {
   size_t max_bundle_size;
@@ -81,8 +80,8 @@ void SetSetting(const Setting& setting);
 /*
 example:
 
-std::string buf;
-int ret = bundle::Reader::Read("p/20120512/4,2048,15.jpg", &buf, "/mnt/mfs");
+  std::string buf;
+  int ret = bundle::Reader::Read("p/20120512/4,2048,15.jpg", &buf, "/mnt/mfs");
 */
 class Reader {
 public:
@@ -101,18 +100,17 @@ private:
 };
 
 /*
+example:
+
   const char *file_buffer = "content of file";
   const int file_size = strlen(file_buffer);
 
   Writer *writer = Writer::Allocate("p/20120512", ".jpg", file_size, "/mnt/mfs");
 
   std::cout << "url: " << writer->EnsureUrl() << std::endl;
-  // p/20120512/4,2048,15.jpg
 
   size_t written;
   int ret = writer->Write(file_buffer, file_size, &written);
-  std::cout << "return: " << ret 
-    << " written: " << written << std::endl;
 
   writer->Release(); // or delete writer
 */
