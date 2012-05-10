@@ -19,10 +19,10 @@
         'defines': ['WIN32', 'OS_WIN', 'NOMINMAX', 'UNICODE', '_UNICODE', 'WIN32_LEAN_AND_MEAN', '_WIN32_WINNT=0x0501'],
         'msvs_settings': {
           'VCLinkerTool': {'GenerateDebugInformation': 'true',
-              'AdditionalLibraryDirectories': ['c:/boost_1_45_0/stage/lib'],
+              'AdditionalLibraryDirectories': ['c:/boost_1_47_0/stage/lib'],
               'SubSystem': 1}, # Console
           'VCCLCompilerTool': {'DebugInformationFormat': '3',
-              'AdditionalIncludeDirectories': ['c:/boost_1_45_0/'],
+              'AdditionalIncludeDirectories': ['c:/boost_1_47_0/'],
               'Optimization': 0}, # Disabled
         },
       },
@@ -86,7 +86,7 @@
 '../src/bundle/fslock.h',
 '../src/bundle/bundle.h',
 '../src/bundle/bundle.cc',
-'../src/bundle/tenandsixty.h',
+'../src/bundle/sixty.h',
 '../src/bundle/murmurhash2.h',
 '../src/bundle/murmurhash2.cc',
 '../src/base3/pathops.h',

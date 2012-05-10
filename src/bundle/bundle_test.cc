@@ -514,12 +514,6 @@ TEST(Bundle, AllocateNonOverwrite) {
 	// Execute("rm -rf ", storage, 0);
 }
 
-TEST(Bundle, Threads) {
-	// create threads ...
-	// random
-	// save url
-}
-
 TEST(Bundle, WriteAndRead) {
   const char *storage = "";
   int arr[] = {0, 1, 2, 1024, 1024+1, 4096, 10*1024

@@ -45,6 +45,8 @@ struct Info {
   size_t size;
   std::string datetime; // 20120512/1350
   std::string prefix, postfix;
+
+  Info() : id(-1), offset(0), size(0) {}
 };
 
 typedef bool (*ExtractUrl)(const char *, Info *);
@@ -80,7 +82,7 @@ void SetSetting(const Setting& setting);
 example:
 
 std::string buf;
-int ret = bundle::Reader::Read("p/20120424/E6/SE/Zb1/C5zWed.jpg", &buf, "/mnt/mfs");
+int ret = bundle::Reader::Read("p/20120512/4,2048,15.jpg", &buf, "/mnt/mfs");
 */
 class Reader {
 public:
@@ -88,10 +90,9 @@ public:
   static int Read(const std::string &url, std::string *buf, const char *storage
     , ExtractUrl extract = 0, std::string *user_data = 0);
 
-  // if OK return 0, else return error
-  static int Read(const char *bundle_file, size_t offset, size_t length
+  // OK return 0, other error
+  static int Read(const char *filename, size_t offset, size_t length
     , char *buf, size_t buf_size, size_t *readed
-    , const char *storage
     , char *user_data = 0, size_t user_data_size = 0);
 
 private:
@@ -100,17 +101,19 @@ private:
 };
 
 /*
-  char *file_buffer = "content of file";
-  const int length = strlen(file_buffer);
+  const char *file_buffer = "content of file";
+  const int file_size = strlen(file_buffer);
 
-  Writer *writer = Writer::Allocate("p/20120512", ".jpg", length, "/mnt/mfs");
+  Writer *writer = Writer::Allocate("p/20120512", ".jpg", file_size, "/mnt/mfs");
 
-  std::cout << "write success, url:" << writer->EnsureUrl() << std::endl;
-  // p/20120512/1_2_3_4.jpg
+  std::cout << "url: " << writer->EnsureUrl() << std::endl;
+  // p/20120512/4,2048,15.jpg
 
   size_t written;
-  int ret = writer->Write(file_buffer, length, &written);
-  
+  int ret = writer->Write(file_buffer, file_size, &written);
+  std::cout << "return: " << ret 
+    << " written: " << written << std::endl;
+
   writer->Release(); // or delete writer
 */
 
@@ -149,8 +152,6 @@ private:
   Writer()
       : filelock_(0), builder_(0)
       {}
-
-  int GetNextBundle(const std::string& storage);
 
   // non-copy
   Writer(const Writer&);

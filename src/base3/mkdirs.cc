@@ -1,10 +1,13 @@
 #include "base3/mkdirs.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 
 #ifdef OS_WIN
-#include <direct.h>
+  #include <direct.h>
+#endif
+
+#ifdef OS_LINUX
+  #include <unistd.h>
 #endif
 
 #include <sys/stat.h>
@@ -97,6 +100,13 @@ int mkdirs(const char *pathname, int mode) {
   path[PATH_LENGTH_MAX - 1] = 0;
 
   size_t path_len = strlen(path);
+
+  // ugly replace
+  for (size_t i=0; i<path_len; ++i) {
+    if (path[i] == '/')
+      path[i] = '\\';
+  }
+  
   while (path_len && '\\' == path[path_len - 1])
     path[path_len - 1] = 0;
 

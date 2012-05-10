@@ -43,24 +43,40 @@
 namespace bundle {
 
 bool ExtractSimple(const char *url, Info *info) {
-    std::string three_part(url);
+    std::string u(url);
+    
+    std::string::size_type dot = u.rfind('.');
+    std::string::size_type last_slash = u.rfind('/');
+    if (std::string::npos == dot || std::string::npos == dot)
+      return false;
+    
+    if (info)
+      info->prefix = u.substr(0, last_slash);
+
+    std::string part_three = u.substr(last_slash + 1, dot - last_slash - 1);
 
     std::vector<std::string> vs;
-    boost::split(vs, three_part, boost::is_any_of(",/."));
+    boost::split(vs, part_three, boost::is_any_of(",/._"));
 
-    if (vs.size() != 3)
+    if (vs.size() < 3)
       return false;
 
     if (info) {
-      info->name = vs[0];
+      info->id = atol(vs[0].c_str());
       info->offset = atol(vs[1].c_str());
       info->size = atol(vs[2].c_str());
+
+      info->postfix = u.substr(dot);
     }
     return true;
 }
 
 std::string BuildSimple(const Info &info) {
   std::ostringstream ostem;
+
+  if (!info.prefix.empty())
+    ostem << info.prefix << "/";
+
   if (info.id != -1)
     ostem << info.id;
   else 
@@ -69,41 +85,71 @@ std::string BuildSimple(const Info &info) {
   ostem << "," 
     << info.offset << ","
     << info.size;
+
+  if (!info.postfix.empty())
+    ostem << info.postfix;
   return ostem.str();
 }
 
-bool ExtractNormal(const char *url, Info *info) {
+bool ExtractWithEncode(const char *url, Info *info) {
   std::string u(url);
   std::string::size_type dot = u.rfind('.');
   std::string::size_type last_slash = u.rfind('/');
   if (std::string::npos == dot || std::string::npos == dot)
     return false;
 
-  std::string three_part = u.substr(last_slash + 1, dot - last_slash - 1);
+  std::string coded_part = u.substr(last_slash + 1, dot - last_slash - 1);
 
   std::vector<std::string> vs;
-  boost::split(vs, three_part, boost::is_any_of(",/."));
+  boost::split(vs, coded_part, boost::is_any_of(",/._"));
 
-  if (vs.size() != 3)
+  if (vs.size() != 4)
     return false;
 
-  if (info) {
-    info->name = vs[0];
-    info->offset = atol(vs[1].c_str());
-    info->size = atol(vs[2].c_str());
+  int32_t hash = FromSixty(vs[3]);
+  if (hash == -1)
+    return false;
+
+  std::string prefix = u.substr(0, last_slash),
+    postfix = u.substr(dot);
+
+  int id = FromSixty(vs[0]);
+  size_t offset = FromSixty(vs[1]),
+    size = FromSixty(vs[2]);
+
+  {
+    std::ostringstream ostem;
+    ostem << prefix << "/"
+      << id << "_"                       // id
+      << offset << "_"
+      << size << "_"
+      << postfix;
+    std::string str = ostem.str();
+    uint32_t this_hash = MurmurHash2(str.c_str(), str.size(), 0);
+
+    if (this_hash != hash)
+      return false;
   }
 
+  if (info) {
+    info->id = id;
+    info->offset = offset;
+    info->size = size;
+    
+    info->prefix = prefix;
+    info->postfix = postfix;
+  }
   return true;
 }
 
-std::string BuildNormal(const Info &info) {
+std::string BuildWithEncode(const Info &info) {
   uint32_t hash = 0;
   {
     std::ostringstream ostem;
     ostem << info.prefix << "/"
-      << info.name << "_" 
       << info.id << "_"
-      << info.size
+      << info.offset << "_"
+      << info.size << "_"
       << info.postfix;
     std::string str = ostem.str();
     hash = MurmurHash2(str.c_str(), str.size(), 0);
@@ -125,8 +171,8 @@ Setting g_default_setting = {
   kBundleCountPerDay,
   50,
   400,
-  &ExtractSimple, &BuildSimple
-  // &ExtractNormal, &BuildNormal
+  // &ExtractSimple, &BuildSimple
+  &ExtractWithEncode, &BuildWithEncode
 };
 
 void SetSetting(const Setting& setting) {
@@ -230,9 +276,15 @@ std::string BuildSimple(uint32_t bid, size_t offset, size_t length
 // avoid too many files in one directory
 std::string Bid2Filename(uint32_t bid) {
   char sz[18]; //8+1+8+1
+#ifdef OS_WINDOWS
+  snprintf(sz, sizeof(sz), "%08x\\%08x",
+    bid / g_default_setting.file_count_level_1,
+    bid % g_default_setting.file_count_level_2);
+#else
   snprintf(sz, sizeof(sz), "%08x/%08x",
     bid / g_default_setting.file_count_level_1,
     bid % g_default_setting.file_count_level_2);
+#endif
   return sz;
 }
 
@@ -245,17 +297,22 @@ int Reader::Read(const std::string &url, std::string *buf
   if (!extract)
     extract = g_default_setting.extract;
 
-  std::string bundle_name; // TODO:
   Info info;
   if (extract(url.c_str(), &info)) {
+    // 
+    std::string bundle_name = base::PathJoin(storage, info.prefix);
+    bundle_name = base::PathJoin(bundle_name, Bid2Filename(info.id));
+
     char *content = new char[info.size];
     size_t readed = 0;
     char ud[kUserDataSize] = {0};
-    int ret = Read(info.name.c_str(), info.offset, info.size
-      , content, info.size, &readed, storage, ud, kUserDataSize);
+    int ret = Read(bundle_name.c_str(), info.offset, info.size
+      , content, info.size, &readed, ud, kUserDataSize);
 
     if (buf)
       *buf = std::string(content, readed);
+
+    delete [] content;
 
     if (user_data) {
       *user_data = std::string(ud, kUserDataSize);
@@ -275,26 +332,21 @@ struct AutoFile {
 };
 
 
-int Reader::Read(const char *bundle_name, size_t offset, size_t length
-  , char *buf, size_t buf_size, size_t *readed, const char *storage
+int Reader::Read(const char *filename, size_t offset, size_t length
+  , char *buf, size_t buf_size, size_t *readed
   , char *user_data, size_t user_data_size) {
-#if 0
   if (user_data && user_data_size < kUserDataSize)
       return EINVAL;
 
-  std::string filename = base::PathJoin(storage, bundle_name);
-
-  FILE* fp = fopen(filename.c_str(), "r+b");
-  if (!fp) {
+  FILE* fp = fopen(filename, "r+b");
+  if (!fp)
     return errno;
-  }
 
   AutoFile af(fp);
 
   int ret = fseek(fp, offset, SEEK_SET);
-  if (-1 == ret) {
+  if (-1 == ret)
     return errno;
-  }
 
   FileHeader header;
   if (fread(&header, 1, kFileHeaderSize, fp) < kFileHeaderSize) {
@@ -324,7 +376,6 @@ int Reader::Read(const char *bundle_name, size_t offset, size_t length
 
   if (user_data)
     memcpy(user_data, header.user_data_, kUserDataSize);
-#endif
   return 0;
 }
 

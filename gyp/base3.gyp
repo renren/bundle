@@ -13,7 +13,7 @@
       'target_defaults': {
         # 'cflags': ['-fPIC', '-g', '-O2',],
         'defines': ['OS_WIN', 'ARCH_CPU_X86_FAMILY', 'NOMINMAX', 'UNICODE', '_UNICODE', 'WIN32_LEAN_AND_MEAN', '_WIN32_WINNT=0x0501', 'BASE_DISABLE_POOL'],
-        'include_dirs': ['c:/boost_1_45_0'],
+        'include_dirs': ['c:/boost_1_47_0'],
         'msvs_settings': {
           'VCLinkerTool': {'GenerateDebugInformation': 'true',},
           'VCCLCompilerTool': {'DebugInformationFormat': '3',},
