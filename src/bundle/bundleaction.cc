@@ -22,6 +22,9 @@ struct WriteAction : public BaseAction {
   virtual HttpStatusCode Process(Request * request, Response * response) {
     static const std::string kDefaultContentType("text/plain; charset=utf-8");
 
+    if (request->method() != cwf::HV_POST)
+      return HC_METHOD_NOT_ALLOWED;
+
     response->header().set_status_code(HC_OK, "OK");
     response->header().Add(HH_CONTENT_TYPE, kDefaultContentType);
     response->OutputHeader();
@@ -77,6 +80,9 @@ struct WriteRedirectAction : public BaseAction {
   virtual HttpStatusCode Process(Request * request, Response * response) {
     static const std::string kDefaultContentType("text/plain; charset=utf-8");
 
+    if (request->method() != cwf::HV_POST)
+      return HC_METHOD_NOT_ALLOWED;
+
     const Request::DispositionArrayType & files = request->files();
     for (unsigned int i = 0; i < files.size(); ++i) {
       const cwf::Request::FormDisposition & fd = files[i];
@@ -127,13 +133,6 @@ struct ReadAction : public cwf::BaseAction {
     static const std::string kImageType("image/jpeg");
 
     std::string url = request->url();
-#if 0
-    if (url.find("/p/") != 0) {
-      response->header().set_status_code(cwf::HC_NOT_ACCEPTABLE, "Not Found");
-      response->OutputHeader();
-      return cwf::HC_NOT_ACCEPTABLE;
-    }
-#endif
 
     // ugly 3
     url = url.substr(1);

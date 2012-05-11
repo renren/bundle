@@ -47,6 +47,10 @@ struct Info {
   std::string prefix, postfix;
 
   Info() : id(-1), offset(0), size(0) {}
+
+  Info(const char *prefix_, int id_, size_t offset_, size_t size_, const char *postfix_)
+    : prefix(prefix_), id(id_), offset(offset_), size(size_), postfix(postfix_)
+    {}
 };
 
 typedef bool (*ExtractUrl)(const char *, Info *);

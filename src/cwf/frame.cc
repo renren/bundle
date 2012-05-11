@@ -109,8 +109,12 @@ struct CodeWithMessage {
 const CodeWithMessage kDefaultMessage[] = {
   {HC_BAD_REQUEST, "Bad Request"},
   {HC_UNAUTHORIZED, "Unauthorized"},
+  {HC_METHOD_NOT_ALLOWED, "Method Not Allowed"},
+  {HC_NOT_ACCEPTABLE, "Not Acceptable"},
+  {HC_PROXY_AUTHENTICATION_REQUIRED, "Proxy Authentication Required"},
 
-  {HC_OK, 0}
+  {HC_OK, "OK"},
+  {(HttpStatusCode)0, NULL} // weired NULL
 };
 
 void FrameWork::ResponseError(Response* response, HttpStatusCode code, const char* message) {

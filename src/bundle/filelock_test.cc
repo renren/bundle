@@ -79,8 +79,8 @@ TEST(FileLock, Test) {
 
 TEST(FileLock, MultiServer) {
 	const char *lockfile[] = {
-		"/mnt/mfs/.locktest/a",
-		"/mnt/mfs/.locktest/aa",
+		".lock/a",
+		".lock/aa",
 	};
 
   int num = sizeof(lockfile)/sizeof(*lockfile);
@@ -89,7 +89,7 @@ TEST(FileLock, MultiServer) {
 
 	for (int i=0; i<num; ++i) {
     filelock_a[i] = new bundle::FileLock(lockfile[i]);
-    EXPECT_TRUE(filelock_a[i]->TryLock()) << " > index:" << i;
+    EXPECT_TRUE(filelock_a[i]->TryLock()) << " > index: " << i << " file: " << lockfile[i];
 	}
 #if 0
 	for (int i=0; i<num; ++i) {
