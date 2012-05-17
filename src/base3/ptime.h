@@ -11,7 +11,7 @@ namespace base {
 
 #ifdef OS_LINUX
 namespace detail {
-// 返回差值单位为毫秒
+// in milliseconds
 inline double timeval_sub(const struct timeval *t1, const struct timeval *t2) {
   return (double)((t2->tv_sec * 1000000 + t2->tv_usec)
     - (t1->tv_sec * 1000000 + t1->tv_usec))/1000;
@@ -21,8 +21,6 @@ inline double timeval_sub(const struct timeval *t1, const struct timeval *t2) {
 
 class ptime {
 public:
-  // 如果threshold不为0，譬如 100 ms
-  // 在~ptime or check时检测消耗时间为>100ms时，就输出 log
   explicit ptime(const char* name, bool auto_log = true, int threshold = 0)
     : auto_log_(auto_log), name_(name), threshold_(threshold) {
 #ifdef OS_LINUX
@@ -51,7 +49,7 @@ public:
 #endif
   }
 
-  // 消耗时钟时间, 单位为毫秒
+  // in milliseconds
   double wall_clock() const {
 #ifdef OS_LINUX
     struct timeval end;
@@ -64,7 +62,6 @@ public:
 
 protected:
   void check_dump() {
-    // 符合 diff > threshold 或者 auto_log_ 时，才输出
     double diff_wall = wall_clock();
 
     if (auto_log_ || (threshold_ && threshold_ < diff_wall)) {

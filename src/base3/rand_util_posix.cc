@@ -36,7 +36,8 @@ class URandomFd {
   int fd_;
 };
 
-base::LazyInstance<URandomFd> g_urandom_fd(base::LINKER_INITIALIZED);
+// base::LazyInstance<URandomFd> g_urandom_fd(base::LINKER_INITIALIZED);
+URandomFd g_urandom_fd;
 
 }  // namespace
 
@@ -45,11 +46,8 @@ namespace base {
 uint64 RandUint64() {
   uint64 number;
 
-  int urandom_fd = g_urandom_fd.Pointer()->fd();
-  bool success = file_util::ReadFromFD(urandom_fd,
-                                       reinterpret_cast<char*>(&number),
-                                       sizeof(number));
-  CHECK(success);
+  int urandom_fd = g_urandom_fd.fd();
+  read(urandom_fd, reinterpret_cast<char*>(&number), sizeof(number));
 
   return number;
 }
@@ -57,5 +55,5 @@ uint64 RandUint64() {
 }  // namespace base
 
 int GetUrandomFD(void) {
-  return g_urandom_fd.Pointer()->fd();
+  return g_urandom_fd.fd();
 }
