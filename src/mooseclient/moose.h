@@ -39,7 +39,6 @@ struct FileAttribute {
     return stbuf.st_size;
   }
   
-private:
   void to_stat(uint32_t inode, struct stat *stbuf) const;
 
   uint8_t buf[35];
@@ -168,6 +167,10 @@ private:
 class File {
 public:
   File(MasterServer *m) : master_(m), position_(0), inode_(0), truncate_in_close_(false) {}
+
+  uint32_t inode() const {
+    return inode_;
+  }
 
   int Open(const char *pathname, int flags, mode_t mode);
   int Create(const char *pathname, mode_t mode);

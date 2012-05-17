@@ -9,7 +9,7 @@
   'conditions': [
     ['OS=="linux"', {
       'target_defaults': {
-        'cflags': ['-fPIC', '-g', '-O2',],
+        'cflags': ['-fPIC', '-g', '-O2', '-Wall', '-std=c++0x'],
         'defines': ['OS_LINUX', '_FILE_OFFSET_BITS=64'],
       },
     },],
@@ -130,7 +130,26 @@
       'sources': [
 '../src/bundle/bundlewrite.cc',
       ],
-    }
-
+    },
+    {
+      'target_name': 'bundle_with_mooseclient',
+      'type': 'shared_library',
+      'msvs_guid': 'B0FA2853-A0D3-44B8-BDE1-E8B89D372D17',
+      'include_dirs': ['../src'],
+      'dependencies': ['mooseclient.gyp:mooseclient'],
+      'sources': [
+'../src/bundle/fslock.h',
+'../src/bundle/bundle.h',
+'../src/bundle/bundle.cc',
+'../src/bundle/sixty.h',
+'../src/bundle/murmurhash2.h',
+'../src/bundle/murmurhash2.cc',
+'../src/base3/pathops.h',
+'../src/base3/pathops.cc',
+'../src/base3/mkdirs.h',
+'../src/base3/mkdirs.cc',
+      ],
+      'defines': ['USE_MOOSECLIENT=1'],
+    },
   ],
 }

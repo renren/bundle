@@ -67,11 +67,6 @@ std::string mount_point_;
 typedef std::unordered_map<int, moose::File*> TrapedMapType;
 TrapedMapType map_;
 moose::MasterServer *master_ = NULL;
-int next_fd_ = 2147483647;
-
-int NextFd() {
-  return next_fd_--;
-}
 
 static moose::File* GetFile(int fd) {
   TrapedMapType::iterator i = map_.find(fd);
@@ -126,9 +121,8 @@ int open(const char *pathname, int flags) {
     std::string interpath = ToInterpath(abspath);
     moose::File * f = new moose::File(master_);
     if (0 == f->Open(pathname, flags, 0)) {
-      int fd = NextFd();
-      map_[fd] = f;
-      return fd;
+      map_[f->inode()] = f;
+      return f->inode();
     }
 
     delete f;
@@ -144,7 +138,7 @@ int creat(const char *pathname, mode_t mode) {
     std::string interpath = ToInterpath(abspath);
     moose::File * f = new moose::File(master_);
     if (0 == f->Create(pathname, mode)) {
-      int fd = NextFd();
+      int fd = f->inode();
       map_[fd] = f;
       return fd;
     }

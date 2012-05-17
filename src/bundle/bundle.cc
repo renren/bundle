@@ -40,6 +40,19 @@
   #define USE_CACHED_IO 0
 #endif
 
+typedef struct stat struct_stat;
+
+#if defined(USE_MOOSECLIENT)
+#include "mooseclient/moose_c.h"
+
+#define open mfs_open
+#define stat mfs_stat
+#define read mfs_read
+#define write mfs_write
+#define close mfs_close
+#endif
+
+
 namespace bundle {
 
 bool ExtractSimple(const char *url, Info *info) {
@@ -442,7 +455,7 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     // 1 check file
     std::string bundle_root = base::PathJoin(storage, prefix);
     std::string bundle_file = base::PathJoin(bundle_root, Bid2Filename(last_id_));
-    struct stat stat_buf;
+    struct_stat stat_buf;
     int stat_ret;
     if ((0 == (stat_ret = stat(bundle_file.c_str(), &stat_buf))) &&
         (stat_buf.st_size + Align1K(kFileHeaderSize + size))
