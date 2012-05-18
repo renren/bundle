@@ -32,7 +32,7 @@
 
 using namespace moose;
 
-int DeleteForEver(MasterServer *master, uint32_t parent, const char *name) {
+int DeleteForever(MasterServer *master, uint32_t parent, const char *name) {
   FileAttribute attr;
   uint32_t inode_it;
   int ret = master->Lookup(parent, name, &inode_it, NULL);
@@ -66,7 +66,7 @@ void TestOther(MasterServer *master) {
       char sz[32];
       snprintf(sz, 32, "%s%04o", prefix, mode_arr[i]);
 
-      DeleteForEver(master, MFS_ROOT_ID, sz);
+      DeleteForever(master, MFS_ROOT_ID, sz);
 
       // # 
       FileAttribute attr;
@@ -74,7 +74,6 @@ void TestOther(MasterServer *master) {
       ASSERT(STATUS_OK == ret);
 
       ASSERT(attr.mode() == 040000 | mode_arr[i]);
-      // printf("%04o %04o\n", mode_arr[i], attr.mode());
       ASSERT(attr.type() == TYPE_DIRECTORY);
 
       // #
@@ -91,7 +90,7 @@ void TestOther(MasterServer *master) {
       char sz[32];
       snprintf(sz, 32, "%s%04o", prefix, mode_arr[i]);
 
-      DeleteForEver(master, MFS_ROOT_ID, sz);
+      DeleteForever(master, MFS_ROOT_ID, sz);
 
       ret = master->Create(MFS_ROOT_ID, sz, mode_arr[i], &inode_test);
       ASSERT(STATUS_OK == ret);
@@ -133,8 +132,8 @@ void TestOther(MasterServer *master) {
   {
     const char *name = "samename";
 
-    ret = DeleteForEver(master, MFS_ROOT_ID, name);
-    std::cout << "DeleteForEver " << ret << std::endl;
+    ret = DeleteForever(master, MFS_ROOT_ID, name);
+    std::cout << "DeleteForever " << ret << std::endl;
 
     ret = master->Create(MFS_ROOT_ID, name, 0755, &inode_test);
     ASSERT(STATUS_OK == ret);
@@ -142,7 +141,7 @@ void TestOther(MasterServer *master) {
     ret = master->Mkdir(MFS_ROOT_ID, name, 0755, &inode_test, NULL);
     ASSERT(ERROR_EEXIST == ret);
 
-    DeleteForEver(master, MFS_ROOT_ID, name);
+    DeleteForever(master, MFS_ROOT_ID, name);
 
     ret = master->Mkdir(MFS_ROOT_ID, name, 0755, &inode_test, NULL);
     ASSERT(STATUS_OK == ret);
@@ -150,7 +149,7 @@ void TestOther(MasterServer *master) {
     ret = master->Create(MFS_ROOT_ID, name, 0755, &inode_test);
     ASSERT(ERROR_EEXIST == ret);
 
-    DeleteForEver(master, MFS_ROOT_ID, name);
+    DeleteForever(master, MFS_ROOT_ID, name);
   }
 
   // Seek
@@ -238,6 +237,7 @@ void TestBenchWrite(MasterServer *master, uint32_t inode, FileAttribute *attr
 
 void Usage() {
   std::cerr << "Usage:  -r|w fromfile tofile \n"
+    "\t-t other file operation test\n"
     "\t[-c bench test count] \n"
     "\t[-H master server] [-p master port]\n"
     "\t[-b buffer size(KB)]\n";
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
   // -f 
   // -t
   std::string mfsfile, normalfile;
-  std::string host = "10.2.76.28";
+  std::string host = "127.0.0.1";
   int port = 9421;
   int benchcount = 1;
   int buffer_size = 0;
@@ -294,11 +294,13 @@ int main(int argc, char *argv[]) {
   }
 
   if (cmd == CMD_NONE) {
+    std::cerr << "test type missing, -r|-w|-t\n";
     Usage();
     return 1;
   }
 
-  if (optind >= argc - 1) {
+  if (cmd != CMD_OTHER && optind >= argc - 1) {
+    std::cerr << "test type missing, -r|-w|-t\n";
     Usage();
     return 1;
   }

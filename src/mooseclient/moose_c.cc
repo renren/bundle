@@ -29,13 +29,13 @@ int mfs_stat(const char *path, struct stat *buf) {
   moose::FileAttribute attr;
   uint32_t inode;
   int ret = master_->Lookup(path, &inode, &attr);
+  if (!ret)
+    return ret;
 
-  if (0 == ret && buf) {
+  if (buf)
     attr.to_stat(inode, buf);
-    return 0;
-  }
 
-  return ret;
+  return 0;
 }
 
 int mfs_open(const char *pathname, int flags) {
@@ -89,6 +89,7 @@ ssize_t mfs_pwrite(int fd, const void *buf, size_t count, off_t offset) {
   if (f) {
     return f->Pwrite((const char *)buf, count, offset);
   }
+  return -1;
 }
 
 int mfs_close(int fd) {

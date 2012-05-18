@@ -46,6 +46,7 @@
 '../src/bundle/filelock_test.cc',
 '../src/bundle/sixty_test.cc',
 '../src/bundle/bundle_test.cc',
+'../src/bundle/bundle_bench.cc',
 '../src/bundle/bundlewrite.cc',
 #'../src/bundle/bundle_api_test.cc',
       ],
@@ -55,7 +56,7 @@
       ],
     },
     {
-      'target_name': 'bundle_api_unittest',
+      'target_name': 'bundle_api_test',
       'type': 'executable',
       'msvs_guid': '11384258-7F84-5DAE-8AB2-655600A90963',
       'dependencies': [
