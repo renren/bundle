@@ -765,15 +765,18 @@ int MasterServer::Create(uint32_t parent, const char *name, mode_t mode, uint32_
 
 class Cached {
 public:
-  static ChunkServer *Create(uint32_t ip, uint16_t port) {
-    uint64_t key = (uint64_t)ip | port;
-    MapType::iterator i = map_.find(key);
-    if (i != map_.end()) {
-      map_.erase(i);
-      return i->second;
+  static ChunkServer *Create(uint32_t ip, uint16_t port, bool is_read) {
+    if (is_read) {
+      uint64_t key = Key(ip, port, is_read);
+      MapType::iterator i = map_.find(key);
+      if (i != map_.end()) {
+        map_.erase(i);
+        return i->second;
+      }
     }
 
     ChunkServer *cs = new ChunkServer;
+    // std::cerr << " new cs:" << ip << ":" << port << std::endl;
     if (!cs->Connect(ip, port)) {
       delete cs;
       return 0;
@@ -781,13 +784,22 @@ public:
     return cs;
   }
 
-  static void Return(ChunkServer *cs) {
-    uint64_t key = cs->Key();
-    MapType::iterator i = map_.find(key);
-    if (i == map_.end())
-      map_.insert(std::make_pair(key, cs));
-    else
-      delete cs;
+  // ugly
+  static uint64_t Key(uint32_t ip, uint16_t port, bool is_read) {
+    return (uint64_t)ip << 32 | (uint32_t)port << 16 | (uint64_t)is_read;
+  }
+
+  static void Return(ChunkServer *cs, bool is_read) {
+    if (is_read) {
+      uint64_t key = Key(cs->ip(), cs->port(), is_read);
+      MapType::iterator i = map_.find(key);
+      if (i == map_.end()) {
+        map_.insert(std::make_pair(key, cs));
+        return;
+      }
+    }
+    
+    delete cs;
   }
 
   // TODO:
@@ -1146,6 +1158,8 @@ int ChunkServer::WriteBlockInit(Chunk *chunk, uint32_t *writeid) {
   put64bit(&wptr,chunk->id);
   put32bit(&wptr,chunk->version);
 
+  // std::cerr << " CUTOCS_WRITE cid:" << chunk->id << std::endl;
+
   for (size_t i=1; i<chunk->location.size(); ++i) {
     put32bit(&wptr, chunk->location[i].ip);
     put16bit(&wptr, chunk->location[i].port);
@@ -1180,11 +1194,6 @@ int ChunkServer::WriteBlockInit(Chunk *chunk, uint32_t *writeid) {
   return STATUS_OK;
 }
 
-uint64_t ChunkServer::Key() const {
-  return (uint64_t)ip_ | port_;
-}
-
-
 int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint16_t offset,uint32_t size,const uint8_t *buff) {
   // #
   {
@@ -1200,6 +1209,8 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
     put32bit(&ptr,size);
     crc = mycrc32(0,buff,size);
     put32bit(&ptr,crc);
+
+    // std::cerr << " CUTOCS_WRITE_DATA cid:" << chunk->id << std::endl;
 
     int ret = write(socket_, ibuff, 32);
     if (ret != 32) {
@@ -1251,6 +1262,12 @@ int File::Open(const char*pathname, int flags, mode_t mode) {
     return Create(pathname, mode);
   }
 
+  // hack
+  // TODO: check O_CREAT
+  if (0 == ret && flags & O_EXCL) {
+    return -1;
+  }
+
   int oflags = 0;
 
   if ((flags & O_ACCMODE) == O_RDONLY) {
@@ -1287,7 +1304,7 @@ int File::Create(const char *pathname, mode_t mode) {
   uint32_t parent = 0;
   const char *slash = strrchr(pathname, '/');
   size_t len = strlen(pathname);
-  if (slash != pathname + len) {
+  if (slash && slash != pathname + len) {
     std::string parentname(pathname, slash - pathname);
     // std::cout << "loop up " << parentname << std::endl;
     int ret = master_->Lookup(parentname.c_str(), &parent, NULL);
@@ -1354,10 +1371,10 @@ uint32_t File::Write(const char *buf, size_t count) {
     uint64_t chunk_size = std::min(end, (chunk_index+1) *M64) - write_position;
 
     Location & loc = chunk.location[0];
-    ChunkServer *cs = Cached::Create(loc.ip, loc.port);
+    ChunkServer *cs = Cached::Create(loc.ip, loc.port, false);
     if (!cs) {
       // just try again
-      cs = Cached::Create(loc.ip, loc.port);
+      cs = Cached::Create(loc.ip, loc.port, false);
     }
 
     if (!cs) {
@@ -1403,7 +1420,7 @@ uint32_t File::Write(const char *buf, size_t count) {
       if (chunk_pos >= chunk_offset + chunk_size)
         break;
     }
-    Cached::Return(cs);
+    Cached::Return(cs, false);
 
     write_position += chunk_size;
     chunk_index ++;
@@ -1468,7 +1485,7 @@ uint32_t File::Read(char *buf, size_t count) {
       if (goal_count + 1 > chunk.location.size())
         break;
       Location loc = chunk.location[goal_count];
-      cs = Cached::Create(loc.ip, loc.port);
+      cs = Cached::Create(loc.ip, loc.port, true);
 
       ++ goal_count;
     }
@@ -1493,7 +1510,7 @@ uint32_t File::Read(char *buf, size_t count) {
         continue;
       }
     }
-    Cached::Return(cs);
+    Cached::Return(cs, true);
 
     // next chunk
     write_position += chunk_size;
@@ -1515,11 +1532,11 @@ uint64_t File::Seek(uint64_t offset, int whence) {
   uint64_t old_position = position_;
   FileAttribute attr;
   if (STATUS_OK == master_->GetAttr(inode_, &attr)) {
-    if (whence == SEEK_SET && attr.size() > offset) {
+    if (whence == SEEK_SET && attr.size() >= offset) {
       position_ = offset;
       return old_position;
     }
-    if (whence == SEEK_CUR && attr.size() > offset + position_) {
+    if (whence == SEEK_CUR && attr.size() >= offset + position_) {
       position_ += offset;
       return old_position;
     }

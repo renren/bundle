@@ -30,7 +30,7 @@ static ssize_t (*real_write)(int fd, const void *buf, size_t count) = NULL;
 static ssize_t (*real_pread)(int fd, void *buf, size_t count, off_t offset) = NULL;
 static ssize_t (*real_pwrite)(int fd, const void *buf, size_t count, off_t offset) = NULL;
 static int (*real_close)(int fd) = NULL;
-static off_t (*lseek)(int fd, off_t offset, int whence) = NULL;
+static off_t (*real_lseek)(int fd, off_t offset, int whence) = NULL;
 };
 
 #define LOAD_FUNC(name)                                                 \
@@ -63,10 +63,10 @@ static void load_functions(void) {
   loaded = true;
 }
 
-std::string mount_point_;
+static std::string mount_point_;
 typedef std::unordered_map<int, moose::File*> TrapedMapType;
-TrapedMapType map_;
-moose::MasterServer *master_ = NULL;
+static TrapedMapType map_;
+static moose::MasterServer *master_ = NULL;
 
 static moose::File* GetFile(int fd) {
   TrapedMapType::iterator i = map_.find(fd);

@@ -35,17 +35,19 @@ using namespace moose;
 int DeleteForever(MasterServer *master, uint32_t parent, const char *name) {
   FileAttribute attr;
   uint32_t inode_it;
-  int ret = master->Lookup(parent, name, &inode_it, NULL);
+  int ret = master->Lookup(parent, name, &inode_it, &attr);
   if (STATUS_OK != ret)
     return ret;
 
-  std::cerr << "type: " << (int)attr.type() << " ret: " << ret << " inode: " << inode_it << std::endl;  
+  std::cerr << name << " type: " << (int)attr.type() << " ret: " << ret << " inode: " << inode_it << std::endl;  
 
   if (attr.type() == TYPE_DIRECTORY) {
     ret = master->Rmdir(parent, name);
+    ASSERT(0 == ret);
   }
   else {
     ret = master->Unlink(parent, name);
+    ASSERT(0 == ret);
   }
   
   return ret;
@@ -58,7 +60,7 @@ void TestOther(MasterServer *master) {
   uint32_t inode_test;
   int ret = 0;
 
-  // Mkdir
+  // Mkdir: "/fooxxxx"
   {
     const char *prefix = "foo";
     uint32_t mode_arr[] = {0755, 0000, 0111, 0222, 0555, 0666, 0644};
@@ -76,13 +78,21 @@ void TestOther(MasterServer *master) {
       ASSERT(attr.mode() == 040000 | mode_arr[i]);
       ASSERT(attr.type() == TYPE_DIRECTORY);
 
+      {
+        uint32_t inode_query;
+        FileAttribute attr_query;
+        master->Lookup(sz, &inode_query, &attr_query);
+        ASSERT(inode_query == inode_test);
+        ASSERT(0 == memcmp(attr.buf, attr_query.buf, 35));
+      }
+
       // #
       ret = master->Rmdir(MFS_ROOT_ID, sz);
       ASSERT(STATUS_OK == ret);
     }
   }
 
-  // Create | Mknod
+  // Create | Mknod: "/barxxxx"
   {
     const char *prefix = "bar";
     uint32_t mode_arr[] = {0755, 0000, 0111, 0222, 0555, 0666, 0644};
@@ -100,7 +110,7 @@ void TestOther(MasterServer *master) {
     }
   }
 
-  // Mkdir/Create
+  // Mkdir/Create /parent/childxxxxxxxx
   do {
     const char *parent = "parent";
     if (STATUS_OK == master->Lookup(MFS_ROOT_ID, parent, &inode_test, NULL)) {
@@ -109,7 +119,7 @@ void TestOther(MasterServer *master) {
       // ASSERT(STATUS_OK == ret);
     }
 
-    // # 
+    // #
     uint32_t inode_parent;
     FileAttribute attr;
     ret = master->Mkdir(MFS_ROOT_ID, parent, 0755, &inode_parent, &attr);
@@ -133,7 +143,7 @@ void TestOther(MasterServer *master) {
     const char *name = "samename";
 
     ret = DeleteForever(master, MFS_ROOT_ID, name);
-    std::cout << "DeleteForever " << ret << std::endl;
+    std::cout << "DeleteForever " << name << " return " << ret << std::endl;
 
     ret = master->Create(MFS_ROOT_ID, name, 0755, &inode_test);
     ASSERT(STATUS_OK == ret);
@@ -353,6 +363,7 @@ int main(int argc, char *argv[]) {
 
   FileAttribute attr;
   uint32_t inode_test;
+#if 0
   {
     int ret = master.Lookup(mfsfile.c_str(), &inode_test, &attr);
     ASSERT(ret == STATUS_OK);
@@ -361,6 +372,7 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
+#endif
 
   if (cmd == CMD_OTHER) {
     TestOther(&master);

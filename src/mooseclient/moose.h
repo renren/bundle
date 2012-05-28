@@ -3,6 +3,7 @@
 
 #ifndef WIN32
   #include <stdint.h>
+  #include <string.h>
 
   #include <sys/types.h>
   #include <sys/socket.h>
@@ -42,6 +43,10 @@ struct FileAttribute {
   void to_stat(uint32_t inode, struct stat *stbuf) const;
 
   uint8_t buf[35];
+
+  FileAttribute() {
+    memset(buf, 0, sizeof(buf));
+  }
 };
 
 #pragma pack(pop)
@@ -104,7 +109,7 @@ public:
 
   int Create(uint32_t parent, const char *name, mode_t mode, uint32_t *inode);
   int Unlink(uint32_t parent, const char *name);
-
+  
   int session_id() const {
     return session_id_;
   }
@@ -155,7 +160,12 @@ public:
   int WriteBlockInit(Chunk *chunk, uint32_t *writeid);
   int WriteBlock(Chunk *chunk,uint32_t writeid,uint16_t blockno,uint16_t offset,uint32_t size, const uint8_t *buff);
 
-  uint64_t Key() const;
+  uint32_t ip() const {
+    return ip_;
+  }
+  uint16_t port() const {
+    return port_;
+  }
 
 private:
   int socket_;

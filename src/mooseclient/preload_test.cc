@@ -1,5 +1,9 @@
 #include "gtest/gtest.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "mooseclient/preload.h"
 
 extern std::string ToInterpath(std::string const &abspath);
@@ -73,15 +77,17 @@ TEST(Preload, Pathutil) {
 }
 
 TEST(Preload, Remote) {
-  SetMaster("");
+  bool f = SetMaster("127.0.0.1:9421");
+  ASSERT_TRUE(f);
   SetMountPoint("/mnt/mfs/");
 
-  int fd = open("test/foo", O_CREAT);
-  ASSERT_EQ(0, write(fd, "hello", 5));
+  int fd = open("/mnt/mfs/test/foo", O_CREAT, 0644);
+  ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
+  EXPECT_EQ(5, write(fd, "hello", 5));
 
-  lseek(fd, 0, SEEK_SET);
+  EXPECT_EQ(5, lseek(fd, 0, SEEK_SET));
   char buf[5];
-  ASSERT_EQ(5, read(fd, buf, 5));
+  EXPECT_EQ(5, read(fd, buf, 5));
 }
 
 // LD_PRELOAD=out/Default/lib.target/libpreloadfs.so out/Default/preload_test
