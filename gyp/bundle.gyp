@@ -9,7 +9,7 @@
   'conditions': [
     ['OS=="linux"', {
       'target_defaults': {
-        'cflags': ['-fPIC', '-g', '-O2', '-Wall', '-std=c++0x'],
+        'cflags': ['-fPIC', '-g', '-O2', '-Wall'], #, '-std=c++0x'],
         'defines': ['OS_LINUX', '_FILE_OFFSET_BITS=64'],
       },
     },],

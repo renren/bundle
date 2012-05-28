@@ -13,6 +13,14 @@ namespace __gnu_cxx {
       return hash< const char* >()( x.c_str() );
     }
   };
+
+#if !defined(__LP64__)
+  template<> struct hash<uint64_t> {
+    size_t operator()( const uint64_t x ) const {
+      return x;
+    }
+  };
+#endif
 }
 
 namespace std {

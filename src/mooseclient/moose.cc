@@ -18,7 +18,7 @@
 
 #include <iostream>
 #include <iomanip>
-#include <unordered_map>
+#include "base3/hashmap.h"
 
 #include "boost/static_assert.hpp"
 
@@ -803,7 +803,7 @@ public:
   }
 
   // TODO:
-  typedef std::unordered_map<uint64_t, ChunkServer*> MapType; 
+  typedef std::hash_map<uint64_t, ChunkServer*> MapType; 
   static MapType map_;
 };
 

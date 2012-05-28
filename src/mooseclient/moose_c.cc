@@ -1,13 +1,14 @@
 #include "mooseclient/moose_c.h"
 
 #include "base3/pathops.h"
+#include "base3/hashmap.h"
 #include "mooseclient/moose.h"
 
+#include <errno.h>
 #include <iostream>
-#include <unordered_map>
 
 static moose::MasterServer *master_ = NULL;
-typedef std::unordered_map<int, moose::File*> TrapedMapType;
+typedef std::hash_map<int, moose::File*> TrapedMapType;
 static TrapedMapType map_;
 
 bool mfs_connect(const char *host_ip) {
