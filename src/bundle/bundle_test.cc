@@ -30,7 +30,7 @@ struct foo {
 };
 
 void RestoreSetting() {
-  bundle::Setting default_setting = bundle::Setting{
+  bundle::Setting default_setting = {
     bundle::kMaxBundleSize,
     bundle::kBundleCountPerDay,
     50,
