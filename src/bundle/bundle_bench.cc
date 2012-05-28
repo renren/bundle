@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "base3/ptime.h"
 #include "bundle/bundle.h"
 
 #if defined(USE_MOOSECLIENT)
@@ -11,13 +12,19 @@
 TEST(Bundle, Allocate) {
   using namespace bundle;
 
-  const int file_size = random() % (5 * 1024 * 1024);
+  {
+    base::ptime pt("run 10000");
+    int c = 10000;
+    while(c--) {
+      const int file_size = random() % (5 * 1024 * 1024);
 
-  Writer *writer = Writer::Allocate("p/20120512", ".jpg", file_size, "test");
+      Writer *writer = Writer::Allocate("p/20120512", ".jpg", file_size, "test");
 
-  std::string url = writer->EnsureUrl();
+      std::string url = writer->EnsureUrl();
 
-  writer->Release();
+      writer->Release();
+    }
+  }
 }
 
 
