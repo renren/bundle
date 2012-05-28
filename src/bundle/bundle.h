@@ -49,7 +49,7 @@ struct Info {
   Info() : id(-1), offset(0), size(0) {}
 
   Info(const char *prefix_, int id_, size_t offset_, size_t size_, const char *postfix_)
-    : prefix(prefix_), id(id_), offset(offset_), size(size_), postfix(postfix_)
+    : id(id_), offset(offset_), size(size_), prefix(prefix_), postfix(postfix_)
     {}
 };
 

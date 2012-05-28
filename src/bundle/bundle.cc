@@ -1,11 +1,12 @@
 #include "bundle.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <errno.h>
 
 #include <vector>
@@ -25,7 +26,7 @@
 #include "bundle/sixty.h"
 #include "bundle/filelock.h"
 
-#define USE_CACHED_IO 1
+// #define USE_CACHED_IO 1
 
 #ifdef OS_WIN
   #include <process.h>
@@ -40,18 +41,18 @@
   #define USE_CACHED_IO 0
 #endif
 
-typedef struct stat struct_stat;
+#ifdef USE_MOOSECLIENT
+  #include "mooseclient/moose_c.h"
 
-#if defined(USE_MOOSECLIENT)
-#include "mooseclient/moose_c.h"
-
-#define open mfs_open
-#define stat mfs_stat
-#define read mfs_read
-#define write mfs_write
-#define close mfs_close
+  #define open mfs_open
+  #define lstat mfs_stat
+  #define read mfs_read
+  #define write mfs_write
+  #define close mfs_close
+  #define access mfs_access
+  #define unlink mfs_unlink
+  #define lseek mfs_lseek
 #endif
-
 
 namespace bundle {
 
@@ -119,8 +120,8 @@ bool ExtractWithEncode(const char *url, Info *info) {
   if (vs.size() != 4)
     return false;
 
-  int32_t hash = FromSixty(vs[3]);
-  if (hash == -1)
+  uint32_t hash = FromSixty(vs[3]);
+  if (hash == (uint32_t)-1)
     return false;
 
   std::string prefix = u.substr(0, last_slash),
@@ -217,28 +218,29 @@ int Reader::Read(const std::string &url, std::string *buf
     extract = g_default_setting.extract;
 
   Info info;
-  if (extract(url.c_str(), &info)) {
-    // 
-    std::string bundle_name = base::PathJoin(storage, info.prefix);
-    bundle_name = base::PathJoin(bundle_name, Bid2Filename(info.id));
+  if (!extract(url.c_str(), &info))
+    return -1;
+  
+  // 
+  std::string bundle_name = base::PathJoin(storage, info.prefix);
+  bundle_name = base::PathJoin(bundle_name, Bid2Filename(info.id));
 
-    char *content = new char[info.size];
-    size_t readed = 0;
-    char ud[kUserDataSize] = {0};
-    int ret = Read(bundle_name.c_str(), info.offset, info.size
-      , content, info.size, &readed, ud, kUserDataSize);
+  char *content = new char[info.size];
+  size_t readed = 0;
+  char ud[kUserDataSize] = {0};
+  int ret = Read(bundle_name.c_str(), info.offset, info.size
+    , content, info.size, &readed, ud, kUserDataSize);
 
-    if (buf)
-      *buf = std::string(content, readed);
+  if (buf)
+    *buf = std::string(content, readed);
 
-    delete [] content;
+  delete [] content;
 
-    if (user_data) {
-      *user_data = std::string(ud, kUserDataSize);
-    }
-
-    return ret;
+  if (user_data) {
+    *user_data = std::string(ud, kUserDataSize);
   }
+
+  return ret;
 }
 
 struct AutoFile {
@@ -328,15 +330,15 @@ int Writer::Write(const std::string &bundle_file, size_t offset
 #if USE_CACHED_IO
   FILE *fp = fopen(bundle_file.c_str(), "r+b");
   if (!fp)
-    return ENOENT;
+    return errno;
 
   AutoFile af(fp);
 
   int ret = fseek(fp, offset, SEEK_SET);
 #else
-  int fd = open(bundle_file.c_str(), O_RDWR);
+  int fd = open(bundle_file.c_str(), O_RDWR, 0644);
   if(-1 == fd)
-    return ENOENT;
+    return errno;
   int ret = lseek(fd, offset, SEEK_SET);
 #endif
 
@@ -429,6 +431,7 @@ bool CreateBundle(const char *filename) {
 }
 
 static int last_id_ = -1;
+
 Writer* Writer::Allocate(const char *prefix, const char *postfix
   , size_t size, const char *storage
   , const char *lock_path, BuildUrl builder) {
@@ -455,9 +458,9 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     // 1 check file
     std::string bundle_root = base::PathJoin(storage, prefix);
     std::string bundle_file = base::PathJoin(bundle_root, Bid2Filename(last_id_));
-    struct_stat stat_buf;
+    struct stat stat_buf;
     int stat_ret;
-    if ((0 == (stat_ret = stat(bundle_file.c_str(), &stat_buf))) &&
+    if ((0 == (stat_ret = lstat(bundle_file.c_str(), &stat_buf))) &&
         (stat_buf.st_size + Align1K(kFileHeaderSize + size))
           > g_default_setting.max_bundle_size) {
       last_id_ ++;
@@ -468,7 +471,11 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
     // 2 try lock
     // lock path check
     if (-1 == access(lock_dir.c_str(), F_OK)) {
-      if(0 != base::mkdirs(lock_dir.c_str())) {
+#ifndef USE_MOOSECLIENT
+      if (0 != base::mkdirs(lock_dir.c_str())) {
+#else
+      if (0 != mfs_mkdirs(lock_dir.c_str(), 0644)) {
+#endif  
         return NULL;
       }
     }
@@ -490,14 +497,17 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
       std::string parent = base::Dirname(bundle_file);
       // store dir check
       if (-1 == access(parent.c_str(), F_OK)) {
+#ifndef USE_MOOSECLIENT
         if (0 != base::mkdirs(parent.c_str())) {
+#else
+        if (0 != mfs_mkdirs(parent.c_str(), 0644)) {
+#endif
           delete filelock;
           return NULL;
         }
       }
 
       if (!CreateBundle(bundle_file.c_str())) {
-        // TODO: use logging
         delete filelock;
         return NULL;
       }

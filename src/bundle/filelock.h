@@ -8,13 +8,22 @@
 #include <unistd.h>
 #endif
 
+#if defined(USE_MOOSECLIENT)
+#include "mooseclient/moose_c.h"
+
+#define creat mfs_creat
+#define open mfs_open
+#define close mfs_close
+#define lstat mfs_stat
+#define unlink mfs_unlink
+#endif
+
 #include <string>
 
 namespace bundle {
 
 class FileLock {
   public:
-
     FileLock(const char* name, int timeout=10000, int delay=500) 
       : lockfile_(name), timeout_(timeout), delay_(delay), locked_(false) {
     }
@@ -63,8 +72,8 @@ class FileLock {
     static bool Lock(const char* name) {
 #ifndef OS_WIN
       // O_EXCL is the KEY
-      int fd = open(name, O_RDWR | O_EXCL | O_CREAT, 
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+      int fd = open(name, O_RDWR | O_EXCL | O_CREAT,
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
       if (-1 == fd )
         return false;
 

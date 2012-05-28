@@ -8,7 +8,7 @@
   'conditions': [
     ['OS=="linux"', {
       'target_defaults': {
-        'cflags': ['-fPIC', '-g', '-O2', '-Wall','-std=c++0x'],
+        'cflags': ['-fPIC', '-g', '-O0', '-Wall','-std=c++0x'],
         'defines': ['OS_LINUX', '_FILE_OFFSET_BITS=64'],
       },
     },],
@@ -43,7 +43,30 @@
         }],
       ],
       'sources': [
-'../src/mooseclient/test_api.cc',
+'../src/mooseclient/api_test.cc',
+      ],
+    },
+    {
+      'target_name': 'api_c_test',
+      'type': 'executable',
+      'msvs_guid': '2DEFD411-AA04-42CD-A03C-3349BE811652',
+      'include_dirs': [
+        '../src',
+        '../src/testing/gtest/include'
+      ],
+      'dependencies': [
+        'mooseclient', 
+        'gtest.gyp:gtest_main',
+      ],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lrt', '-lpthread', '-ldl'] }],
+        ['OS=="win"', {
+          'libraries': ['ws2_32.lib'],
+          'dependencies': ['base3.gyp:base3'],
+        }],
+      ],
+      'sources': [
+'../src/mooseclient/api_c_test.cc',
       ],
     },
     {
@@ -114,13 +137,13 @@
       'type': 'static_library',
       'msvs_guid': '2EF0D400-9904-41CD-A03C-3349BE811651',
       'include_dirs': ['../src'],
-      'dependencies': [],
+      'dependencies': ['base3.gyp:base3'],
       'defines': ['PROTO_BASE=0'],
       'conditions':[
         ['OS=="linux"', {'libraries': ['-lrt', '-lpthread'] }],
         ['OS=="win"', {
           'libraries': ['ws2_32.lib'],
-          'dependencies': ['base3.gyp:base3'],
+          'dependencies': [],
         }],
       ],
       'sources': [

@@ -124,7 +124,7 @@ TEST(Bundle, Example) {
 
   size_t written;
   int ret = writer->Write(content, length, &written);
-  ASSERT_EQ(0, ret);
+  ASSERT_EQ(0, ret) << "return ret:" << ret;
 
   std::string url = writer->EnsureUrl();
   std::cout << "write success, url: " << url << std::endl;
@@ -210,11 +210,13 @@ TEST(Bundle, AllocateReuse) {
 			, length, storage, lock_dir);
 		EXPECT_TRUE(writer != NULL);
 
+    delete writer;
+
+#if !defined(USE_MOOSECLIENT)
 		EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
 
-		delete writer;
-
     EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
 	}
 
 	// allocate again, without write, make sure no more bundle created
@@ -223,10 +225,13 @@ TEST(Bundle, AllocateReuse) {
 			, length, storage, lock_dir);
 		EXPECT_TRUE(writer != NULL);
 
+    delete writer;
+
+#if !defined(USE_MOOSECLIENT)
 		EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
 
-		delete writer;
     EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
 	}
 
 	// exceed the limit count 100
@@ -247,8 +252,11 @@ TEST(Bundle, AllocateReuse) {
     delete writer;
   }
 
+#if !defined(USE_MOOSECLIENT)
 	EXPECT_EQ("601\n", Execute("find ", storage, " -type f | wc -l", 0));
   EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
+
 #if 0
   //-lR | grep "^-" | wc -l
   std::ostringstream cmd;
@@ -278,8 +286,8 @@ TEST(Bundle, AllocateMax) {
   // write
   const char *content = "content of file";
   const int length = strlen(content);
-	//EXPECT_EQ("601\n", Execute("find ", storage, " -type f | wc -l", 0));
-	//Execute("rm -rf ", storage, 0);
+	// EXPECT_EQ("601\n", Execute("find ", storage, " -type f | wc -l", 0));
+	// Execute("rm -rf ", storage, 0);
 }
 
 //write base_len+ 'a', return url and len=write length
@@ -424,10 +432,13 @@ TEST(Bundle, AllocateSequence) {
 
 		delete [] content;
 		delete writer;
+
+#if !defined(USE_MOOSECLIENT)
 	  if (i < 25)
       EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
     else
       EXPECT_EQ("2\n", Execute("find ", storage, " -type f | wc -l", 0));
+#endif
 	}
 
   for (int j=0; j<30; j++) {
@@ -493,9 +504,10 @@ TEST(Bundle, AllocateNonOverwrite) {
 		delete writer;
 	}
 
+#if !defined(USE_MOOSECLIENT)
 	EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
   EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
-	// Execute("rm -rf ", storage, 0);
+#endif	
 }
 
 TEST(Bundle, WriteAndRead) {
@@ -573,24 +585,30 @@ TEST(Bundle, filelock) {
     EXPECT_FALSE(filelock_b[i]->TryLock());
 	}
 
+#if !defined(USE_MOOSECLIENT)
   EXPECT_EQ("14\n", Execute("find ", ".lock", " -type f | wc -l", 0));
+#endif
 
   for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
     delete filelock_a[i];
   }
+#if !defined(USE_MOOSECLIENT)
   EXPECT_EQ("0\n", Execute("find ", ".lock", " -type f | wc -l", 0));
+#endif
 
 	for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
     EXPECT_TRUE(filelock_b[i]->TryLock());
 	}
-
+#if !defined(USE_MOOSECLIENT)
   EXPECT_EQ("14\n", Execute("find ", ".lock", " -type f | wc -l", 0));
+#endif
 
 	for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
     delete filelock_b[i];
   }
-
+#if !defined(USE_MOOSECLIENT)
   EXPECT_EQ("0\n", Execute("find ", ".lock", " -type f | wc -l", 0));
+#endif
 }
 
 
@@ -614,8 +632,10 @@ TEST(Bundle, AllocateLimit) {
   const int length = strlen(content);
 
 	// empty mock/ first
+#if !defined(USE_MOOSECLIENT)
   Execute("rm -rf ", storage, 0);
   Execute("rm -rf ", lock_dir, 0);
+#endif
 
 	// exceed the limit count 100
 	bundle::Setting a_limited_setting = {
@@ -643,8 +663,10 @@ TEST(Bundle, AllocateLimit) {
       &bundle::ExtractSimple, &bundle::BuildSimple};
 	bundle::SetSetting(default_setting);
 
+#if !defined(USE_MOOSECLIENT)
 	EXPECT_EQ("600\n", Execute("find ", storage, " -type f | wc -l", 0));
   EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
 }
 
 TEST(Bundle, AllocateDefault) {
@@ -657,8 +679,10 @@ TEST(Bundle, AllocateDefault) {
   const int length = strlen(content);
 
 	// empty mock/ first
+#if !defined(USE_MOOSECLIENT)
   Execute("rm -rf ", storage, 0);
   Execute("rm -rf ", lock_dir, 0);
+#endif
 
   for (int i=0; i<600; i++) {
     //printf("---number : %d\n", i);
@@ -672,8 +696,10 @@ TEST(Bundle, AllocateDefault) {
     delete writer;
   }
 
+#if !defined(USE_MOOSECLIENT)
 	EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
   EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
 }
 
 TEST(Bundle, WriteRandom) {
@@ -688,8 +714,10 @@ TEST(Bundle, WriteRandom) {
 	memset(content, 'a', length);
 
 	// empty mock/ first
+#if !defined(USE_MOOSECLIENT)
   Execute("rm -rf ", storage, 0);
   Execute("rm -rf ", lock_dir, 0);
+#endif
 
   for (int i=0; i<times; i++) {
     //printf("---number : %d\n", i);
@@ -703,8 +731,10 @@ TEST(Bundle, WriteRandom) {
     delete writer;
   }
 
+#if !defined(USE_MOOSECLIENT)
 	EXPECT_EQ("1\n", Execute("find ", storage, " -type f | wc -l", 0));
   EXPECT_EQ("0\n", Execute("find ", lock_dir, " -type f | wc -l", 0));
+#endif
 }
 
 

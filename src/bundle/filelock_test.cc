@@ -9,15 +9,15 @@ const char* fn = "own";
 
 #if defined(OS_LINUX)
 TEST(FileLock, Linux) {
-  int fd = creat(fn, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-  ASSERT_TRUE(-1 != fd);
+  int fd = creat(fn, 0622);
+  ASSERT_TRUE(-1 != fd) << "fd:" << fd;
   close(fd);
 
   struct stat st;
-  ASSERT_EQ(0, stat(fn, &st));
+  ASSERT_EQ(0, lstat(fn, &st));
 
   EXPECT_EQ(-1, open(fn, O_RDWR | O_EXCL | O_CREAT 
-                    , S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
+                    , 0622));
   // TODO: test errno
 
   EXPECT_EQ(0, unlink(fn));
@@ -32,14 +32,14 @@ TEST(FileLock, Impl) {
     a.TryLock();
 
     struct stat st;
-    ASSERT_EQ(0, stat(fn, &st));
+    ASSERT_EQ(0, lstat(fn, &st));
   }
   struct stat st;
-  ASSERT_EQ(-1, stat(fn, &st));
+  ASSERT_FALSE(0 == lstat(fn, &st)) << st.st_ino;
 }
 
 TEST(FileLock, Test) {
-	const char *lockfile[] = {
+	const char *filename[] = {
 		".lock/a",
 		".lock/aa",
 		".lock/ab",
@@ -59,52 +59,20 @@ TEST(FileLock, Test) {
   bundle::FileLock * filelock_a[14];
   bundle::FileLock * filelock_b[14];
 
-	for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
-    filelock_a[i] = new bundle::FileLock(lockfile[i]);
+	for (int i=0; i<sizeof(filename)/sizeof(*filename); ++i) {
+    filelock_a[i] = new bundle::FileLock(filename[i]);
     EXPECT_TRUE(filelock_a[i]->TryLock());
 	}
-	for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
-    filelock_b[i] = new bundle::FileLock(lockfile[i]);
+	for (int i=0; i<sizeof(filename)/sizeof(*filename); ++i) {
+    filelock_b[i] = new bundle::FileLock(filename[i]);
     EXPECT_FALSE(filelock_b[i]->TryLock());
 	}
 
-	for (int i=0; i<sizeof(lockfile)/sizeof(*lockfile); ++i) {
+	for (int i=0; i<sizeof(filename)/sizeof(*filename); ++i) {
     delete filelock_a[i];
     delete filelock_b[i];
-  }
-  
-  //EXPECT_EQ("1\n", Execute("find ", ".lock", " -type f | wc -l", 0));
-  
+  }  
 }
-
-TEST(FileLock, MultiServer) {
-	const char *lockfile[] = {
-		".lock/a",
-		".lock/aa",
-	};
-
-  int num = sizeof(lockfile)/sizeof(*lockfile);
-  bundle::FileLock * filelock_a[num];
-  bundle::FileLock * filelock_b[num];
-
-	for (int i=0; i<num; ++i) {
-    filelock_a[i] = new bundle::FileLock(lockfile[i]);
-    EXPECT_TRUE(filelock_a[i]->TryLock()) << " > index: " << i << " file: " << lockfile[i];
-	}
-#if 0
-	for (int i=0; i<num; ++i) {
-    filelock_b[i] = new bundle::FileLock(lockfile[i]);
-    EXPECT_FALSE(filelock_b[i]->TryLock()) << " > index:" << i;
-	}
-
-	for (int i=0; i<num; ++i) {
-    delete filelock_a[i];
-    delete filelock_b[i];
-  }
-#endif  
-  // EXPECT_EQ("1\n", Execute("find ", ".lock", " -type f | wc -l", 0));
-}
-
 
 volatile bool magic_ = false;
 bool quit_ = false;
@@ -114,6 +82,7 @@ void Proc() {
   using namespace bundle;
   while(!quit_) {
     FileLock a(fn, true);
+    a.TryLock();
     if (a.IsLocked()) {
       EXPECT_EQ(0, magic_);
       magic_ = true;
@@ -127,13 +96,14 @@ void Proc() {
   }
 }
 
+#if 0
 #if defined(OS_LINUX)
 TEST(FileLock, Threads) {
   boost::thread_group g;
   for (int i=0; i<10; ++i)
     g.create_thread(&Proc);
 
-  // base::Sleep(5000);
+  sleep(1);
   quit_ = true;
   g.join_all();
 
@@ -141,6 +111,7 @@ TEST(FileLock, Threads) {
 	    << " failed: " << failed_count_
 	    << std::endl;
 }
+#endif
 #endif
 
 // ext3 

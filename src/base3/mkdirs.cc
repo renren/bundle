@@ -44,7 +44,7 @@ int mkdirs(const char *pathname, mode_t mode) {
     pa+=2;
   }
 
-  char *p;
+  char *p = 0;
   while (1) {
    if (0 != (p = strchr(pa, '/'))) {
      *p = '\0';

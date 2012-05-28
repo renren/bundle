@@ -47,7 +47,7 @@
 '../src/bundle/sixty_test.cc',
 '../src/bundle/bundle_test.cc',
 '../src/bundle/bundle_bench.cc',
-'../src/bundle/bundlewrite.cc',
+#'../src/bundle/bundlewrite.cc',
 #'../src/bundle/bundle_api_test.cc',
       ],
       'include_dirs': [
@@ -81,7 +81,7 @@
       'msvs_guid': 'B0FA2853-A0D3-44B8-BDE0-E8B89D372D16',
       'include_dirs': ['../src'],
       'dependencies': [
-        #'base3.gyp:base3',
+        'base3.gyp:base3',
       ],
       'sources': [
 '../src/bundle/fslock.h',
@@ -90,10 +90,6 @@
 '../src/bundle/sixty.h',
 '../src/bundle/murmurhash2.h',
 '../src/bundle/murmurhash2.cc',
-'../src/base3/pathops.h',
-'../src/base3/pathops.cc',
-'../src/base3/mkdirs.h',
-'../src/base3/mkdirs.cc',
       ],
       #'export_dependent_settings': ['base3.gyp:base3'],
     },
@@ -138,6 +134,10 @@
       'msvs_guid': 'B0FA2853-A0D3-44B8-BDE1-E8B89D372D17',
       'include_dirs': ['../src'],
       'dependencies': ['mooseclient.gyp:mooseclient'],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_system', '-lpthread', '-lrt'] }],
+        ['OS=="win"', {'libraries': [] }],
+      ],
       'sources': [
 '../src/bundle/fslock.h',
 '../src/bundle/bundle.h',
@@ -145,12 +145,31 @@
 '../src/bundle/sixty.h',
 '../src/bundle/murmurhash2.h',
 '../src/bundle/murmurhash2.cc',
-'../src/base3/pathops.h',
-'../src/base3/pathops.cc',
-'../src/base3/mkdirs.h',
-'../src/base3/mkdirs.cc',
       ],
       'defines': ['USE_MOOSECLIENT=1'],
+    },
+    {
+      'target_name': 'bundle_with_mooseclient_unittest',
+      'type': 'executable',
+      'msvs_guid': '11384248-6F84-5DAF-9AB2-655600A90964',
+      'dependencies': [
+        'gtest.gyp:gtest',
+        'bundle_with_mooseclient',
+      ],
+      'defines': ['USE_MOOSECLIENT=1'],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_system', '-lpthread'] }],
+        ['OS=="win"', {'libraries': [] }],
+      ],
+      'sources': [
+'../src/bundle/bundle_test.cc',
+'../src/bundle/bundle_bench.cc',
+'../src/bundle/filelock_test.cc',
+      ],
+      'include_dirs': [
+        '../src',
+        '../src/testing/gtest/include'
+      ],
     },
   ],
 }

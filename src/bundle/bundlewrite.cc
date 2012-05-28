@@ -39,7 +39,8 @@ std::string Write(const char *prefix, const char *postfix, const char *storage
   }
   return "";
 }
-#if 0
+
+#if 1
 int main(int argc, char *argv[]) {
   char tm_buf[32];
   time_t now = time(NULL);
