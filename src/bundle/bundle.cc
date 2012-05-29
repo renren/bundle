@@ -481,7 +481,6 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
       , boost::lexical_cast<std::string>(last_id_));
     FileLock *filelock = new FileLock(lock_file.c_str());
     if (!(filelock->TryLock())) {
-
       // check or create lock_dir
       if (-1 == access(lock_dir.c_str(), F_OK)) {
 #ifndef USE_MOOSECLIENT
@@ -496,8 +495,9 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
 
       // try again
       if (!filelock->TryLock()) {
+        last_id_ ++;
         delete filelock;
-        return NULL;
+        continue;
       }
     }
 
