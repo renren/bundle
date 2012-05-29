@@ -193,6 +193,12 @@ void SetSetting(const Setting& setting) {
   g_default_setting = setting;
 }
 
+template<typename T>
+inline T Align4K(T v) {
+  T a = v % 4096;
+  return a ? (v + 4096 - a) : v;
+}
+
 // avoid too many files in one directory
 std::string Bid2Filename(uint32_t bid) {
   char sz[18]; //8+1+8+1
@@ -383,6 +389,21 @@ int Writer::Write(const std::string &bundle_file, size_t offset
   return 0;
 }
 
+int Writer::BatchWrite(const char *buf, size_t buf_size, size_t *written
+  , std::string *url
+  , const char *user_data, size_t user_data_size) {
+  info_.size = buf_size; // for this time
+  std::string this_url = EnsureUrl();
+  int ret = Write(this_url, buf, buf_size, written, user_data, user_data_size);
+  if (0 == ret) {
+    info_.offset += kFileHeaderSize + Align1K(buf_size); // for next time
+
+    if (url)
+      *url = this_url;
+  }
+  return ret;
+}
+
 #if 0
 time_t now = time(NULL);
 struct tm* ts = localtime(&now);
@@ -455,7 +476,32 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
       last_id_ = g_default_setting.bundle_count_per_day + rand() % 100; // TODO:
     }
 
-    // 1 check file
+    // 1 try lock
+    std::string lock_file = base::PathJoin(lock_dir
+      , boost::lexical_cast<std::string>(last_id_));
+    FileLock *filelock = new FileLock(lock_file.c_str());
+    if (!(filelock->TryLock())) {
+
+      // check or create lock_dir
+      if (-1 == access(lock_dir.c_str(), F_OK)) {
+#ifndef USE_MOOSECLIENT
+        if (0 != base::mkdirs(lock_dir.c_str())) {
+#else
+        if (0 != mfs_mkdirs(lock_dir.c_str(), 0644)) {
+#endif
+          delete filelock;
+          return NULL;
+        }
+      }
+
+      // try again
+      if (!filelock->TryLock()) {
+        delete filelock;
+        return NULL;
+      }
+    }
+
+    // 2 check bundle file (locked now)
     std::string bundle_root = base::PathJoin(storage, prefix);
     std::string bundle_file = base::PathJoin(bundle_root, Bid2Filename(last_id_));
     struct stat stat_buf;
@@ -464,33 +510,12 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
         (stat_buf.st_size + Align1K(kFileHeaderSize + size))
           > g_default_setting.max_bundle_size) {
       last_id_ ++;
+      delete filelock;
       continue;
     }
     int stat_errno = errno;
 
-    // 2 try lock
-    // lock path check
-    if (-1 == access(lock_dir.c_str(), F_OK)) {
-#ifndef USE_MOOSECLIENT
-      if (0 != base::mkdirs(lock_dir.c_str())) {
-#else
-      if (0 != mfs_mkdirs(lock_dir.c_str(), 0644)) {
-#endif  
-        return NULL;
-      }
-    }
-
-    //
-    std::string lock_file = base::PathJoin(lock_dir
-        , boost::lexical_cast<std::string>(last_id_));
-    FileLock *filelock = new FileLock(lock_file.c_str());
-    if (!(filelock->TryLock())) {
-      last_id_ ++;
-      delete filelock;
-      continue;
-    }
-
-    // 3 locked
+    // 3 maybe create bundle
     size_t offset;
     if ((-1 == stat_ret) && (stat_errno == ENOENT)) {
       // get parent dir

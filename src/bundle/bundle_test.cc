@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <boost/scoped_array.hpp>
+#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -782,4 +783,48 @@ TEST(Bundle, UserDefinedUrl) {
   std::string readed_content;
   ASSERT_EQ(0, bundle::Reader::Read(url, &readed_content, storage, &FakeExtract));
   ASSERT_EQ(readed_content, content);
+}
+
+struct Foo {
+  std::string url;
+  std::string content;
+};
+
+TEST(Bundle, BatchWrite) {
+  const char *storage = "test";
+
+  std::vector<Foo> foos;
+  int arr[] = {1, 10, 100, 1023, 1024, 1025, 1024*4, 1024*4+1, 1024*1024
+    , 1024*1024 + 1, 1024*1024 + 100, 1024*1024*64-1, 1024*1024*64, 1024*1024*64+1
+  };
+
+  {
+    bundle::Writer *writer = bundle::Writer::Allocate("p/20120512", ".txt"
+      , 10*1024, storage, 0);
+    ASSERT_TRUE(0 != writer);
+
+    for (int i=0; i<sizeof(arr)/sizeof(*arr); ++i) {
+      Foo foo;
+      std::string content = std::string(arr[i], 'a' + i);
+      size_t written = 0;
+      std::string url;
+
+      int ret = writer->BatchWrite(content.data(), content.size(), &written, &foo.url);
+      ASSERT_EQ(0, ret);
+      ASSERT_EQ(content.size(), written);
+      ASSERT_TRUE(!foo.url.empty());
+      
+      foos.push_back(foo);
+    }
+
+    delete writer;
+  }
+
+  for (int i=0; i<sizeof(arr)/sizeof(*arr); ++i) {
+    const Foo & foo = foos[i];
+    std::string content = std::string(arr[i], 'a' + i);
+    std::string readed_content;
+    ASSERT_EQ(0, bundle::Reader::Read(foo.url, &readed_content, storage)) << foo.url;
+    ASSERT_EQ(readed_content, content);
+  }
 }

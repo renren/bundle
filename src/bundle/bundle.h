@@ -134,6 +134,10 @@ public:
   int Write(const std::string &url, const char *buf, size_t buf_size
     , size_t *written, const char *user_data = 0, size_t user_data_size = 0) const;
 
+  int BatchWrite(const char *buf, size_t buf_size, size_t *written = 0
+    , std::string *url = 0
+    , const char *user_data = 0, size_t user_data_size = 0);
+
   void Release();
 
   const Info & info() const {
