@@ -396,7 +396,7 @@ int Writer::BatchWrite(const char *buf, size_t buf_size, size_t *written
   std::string this_url = EnsureUrl();
   int ret = Write(this_url, buf, buf_size, written, user_data, user_data_size);
   if (0 == ret) {
-    info_.offset += kFileHeaderSize + Align1K(buf_size); // for next time
+    info_.offset += Align1K(kFileHeaderSize + buf_size); // for next time
 
     if (url)
       *url = this_url;
