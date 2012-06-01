@@ -4,19 +4,16 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <errno.h>
+
+#ifdef OS_WIN
+  #include <winsock2.h>
+  #define snprintf _snprintf
+#endif
 
 #include "mooseclient/moose_c.h"
 
-void ConnectOnce() {
-  static bool f = false;
-  if (!f) {
-    f = mfs_connect("127.0.0.1:9421");
-  }
-}
-
 TEST(CAPI, Example) {
-  ConnectOnce();
-
   int fd = mfs_open("test/foo", O_CREAT, 0644);
   ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
 
@@ -37,8 +34,6 @@ TEST(CAPI, Example) {
 }
 
 TEST(CAPI, Write) {
-  ConnectOnce();
-
   int fd = mfs_open("test/write.txt", O_CREAT, 0644);
   ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
 
@@ -74,6 +69,30 @@ TEST(CAPI, Write) {
   EXPECT_EQ(0, mfs_close(fd));
 }
 
+TEST(CAPI, MultiWrite) {
+  int arr[] = {1, 10, 100, 1023, 1024, 1025
+    , 1024*4, 1024*4+1, 1024*1024, 1024*1024 + 1, 1024*1024 + 100
+    , 1024*1024*64-1, 1024*1024*64, 1024*1024*64+1
+  };
+
+  const char* fn = "test/multiwrite.txt";
+
+  mfs_unlink(fn);
+
+  for (int i=0; i<sizeof(arr)/sizeof(*arr); ++i) {
+    int fd = mfs_open(fn, O_CREAT|O_RDWR|O_APPEND, 0644);
+    ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
+
+    std::string content = std::string(arr[i], 'a' + i);
+    content.append("\n");
+
+    int a = mfs_write(fd, content.data(), content.size());
+    EXPECT_EQ(content.size(), a) << "return " << a;
+
+    EXPECT_EQ(0, mfs_close(fd));
+  }
+}
+
 TEST(CAPI, Unlink) {
   EXPECT_TRUE(mfs_creat("own", 0644) > 0);
   EXPECT_TRUE(mfs_unlink("own") == 0);
@@ -94,4 +113,32 @@ TEST(CAPI, Stat) {
 
   mfs_unlink(p);
   EXPECT_TRUE(0 != mfs_stat(p, 0));
+}
+
+int main(int argc, char **argv) {
+  std::cout << "Running main() from mooseclient/api_c_test.cc\n";
+
+#ifdef WIN32
+  WSADATA wsa_data;
+  WSAStartup(0x0201, &wsa_data);
+#endif
+
+  bool connected = false;
+
+  for (int i=1; i<argc; ++i) {
+    if (std::string(argv[i]) == "-H") {
+      int ret = mfs_connect(argv[i+1]);
+      std::cout << "Connect to " << argv[i+1] << " return " << ret << std::endl;
+      connected = true;
+      break;
+    }
+  }
+
+  if (!connected) {
+    std::cerr << " Error: run as -H 127.0.0.1:9421 connect to moose master.\n";
+    return 1;
+  }
+
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

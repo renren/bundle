@@ -115,7 +115,7 @@
               }],
               ['OS=="win"', {
                 'run_as': {
-                  'action????': ['$(TargetPath)', '--gtest_print_time'],
+                  #'action????': ['$(TargetPath)', '--gtest_print_time'],
                 },
               }],
             ],

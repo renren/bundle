@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <cassert>
 #include <string>
-#include <unordered_map>
+#include "base3/hashmap.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -64,7 +64,7 @@ static void load_functions(void) {
 }
 
 static std::string mount_point_;
-typedef std::unordered_map<int, moose::File*> TrapedMapType;
+typedef std::hash_map<int, moose::File*> TrapedMapType;
 static TrapedMapType map_;
 static moose::MasterServer *master_ = NULL;
 

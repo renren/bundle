@@ -1349,8 +1349,7 @@ uint64_t M64 = 64 *1024 *1024;
 uint64_t K64 = 64 *1024;
 
 uint32_t File::Write(const char *buf, size_t count) {
-  ASSERT(inode_);
-  
+  ASSERT(inode_);  
   uint64_t end = position_ + count;
 
   uint64_t write_position = position_;

@@ -4,6 +4,7 @@
 
 #include "base3/rand_util.h"
 
+#define _CRT_RAND_S
 #include <stdlib.h>
 
 #include "base3/basictypes.h"

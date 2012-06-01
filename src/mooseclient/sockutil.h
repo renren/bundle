@@ -14,6 +14,7 @@
 
   typedef uint32_t socklen_t;
   typedef uint32_t mode_t;
+  typedef __int64 ssize_t;
 
   // sys/time.h
   #if 0

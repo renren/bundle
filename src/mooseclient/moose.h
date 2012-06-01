@@ -29,13 +29,13 @@ struct FileAttribute {
   }
 
   int mode() const {
-    struct stat stbuf;
+    struct stat stbuf = {0};
     to_stat(0, &stbuf);
     return stbuf.st_mode;
   }
 
   uint64_t size() const {
-    struct stat stbuf;
+    struct stat stbuf = {0};
     to_stat(0, &stbuf);
     return stbuf.st_size;
   }
@@ -143,8 +143,8 @@ private:
 
   enum {
     VERSMAJ = 1,
-    VERSMID = 1,
-    VERSMIN = 1,
+    VERSMID = 6,
+    VERSMIN = 24,
   };
 };
 

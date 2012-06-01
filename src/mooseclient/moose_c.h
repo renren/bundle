@@ -3,7 +3,16 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#ifdef OS_LINUX
+  #include <unistd.h>
+#endif
+
+#ifdef OS_WIN
+  #include <stdint.h>
+  typedef uint32_t mode_t;
+  typedef __int64 ssize_t;
+  #define F_OK 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {

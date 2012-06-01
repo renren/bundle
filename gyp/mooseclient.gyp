@@ -49,14 +49,13 @@
     {
       'target_name': 'api_c_test',
       'type': 'executable',
-      'msvs_guid': '2DEFD411-AA04-42CD-A03C-3349BE811652',
+      'msvs_guid': '2DEFD411-AA04-42CD-A03C-3349BE811653',
       'include_dirs': [
         '../src',
         '../src/testing/gtest/include'
       ],
       'dependencies': [
-        'mooseclient', 
-        'gtest.gyp:gtest_main',
+        'gtest.gyp:gtest', 'mooseclient'
       ],
       'conditions':[
         ['OS=="linux"', {'libraries': ['-lrt', '-lpthread', '-ldl'] }],

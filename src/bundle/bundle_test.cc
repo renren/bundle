@@ -810,7 +810,7 @@ TEST(Bundle, BatchWrite) {
       std::string url;
 
       int ret = writer->BatchWrite(content.data(), content.size(), &written, &foo.url);
-      ASSERT_EQ(0, ret);
+      ASSERT_EQ(0, ret) << "write size: " << arr[i];
       ASSERT_EQ(content.size(), written);
       ASSERT_TRUE(!foo.url.empty());
       
