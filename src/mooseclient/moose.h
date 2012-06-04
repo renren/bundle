@@ -198,6 +198,8 @@ public:
   uint32_t Pread(char *buf, size_t count, off_t offset);
 
 private:
+  uint32_t WriteInternal(const char *buf, size_t count);
+
   MasterServer* master_;
   uint64_t position_;
   uint32_t inode_;
