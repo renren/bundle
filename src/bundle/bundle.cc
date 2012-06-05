@@ -265,18 +265,13 @@ int Reader::Read(const char *filename, size_t offset, size_t length
   if (user_data && user_data_size < kUserDataSize)
       return EINVAL;
 
-  FILE* fp = fopen(filename, "r+b");
-  if (!fp)
+  int fd = open(filename, O_RDWR, 0644);
+  if(-1 == fd)
     return errno;
-
-  AutoFile af(fp);
-
-  int ret = fseek(fp, offset, SEEK_SET);
-  if (-1 == ret)
-    return errno;
+  int ret = lseek(fd, offset, SEEK_SET);
 
   FileHeader header;
-  if (fread(&header, 1, kFileHeaderSize, fp) < kFileHeaderSize) {
+  if (read(fd, &header, kFileHeaderSize) < kFileHeaderSize) {
     return EIO;
   }
   if (FileHeader::kMAGIC_CODE != header.magic_) {
@@ -292,7 +287,7 @@ int Reader::Read(const char *filename, size_t offset, size_t length
     return EIO;
   }
   int rsize = (length > buf_size)? buf_size : length;
-  ret = fread(buf, 1, rsize, fp);
+  ret = read(fd, buf, rsize);
 
   if (readed)
     *readed = ret;
