@@ -125,13 +125,13 @@ TEST(CAPI, MultiWrite) {
 }
 
 TEST(CAPI, MultiWrite2) {
-  const char* fn = "test/multiwrite2.txt";
-
-  const int SIZE_TO_WRITE = 1024*1024*5;
+  char fn[260];
+  snprintf(fn, sizeof(fn), "test/multiwrite%d.txt", getpid());
 
   int c = 1000;
   while (c --) {
-    std::string content = FakeString(rand() % SIZE_TO_WRITE, 'a' + c % 26);
+    // 100k - 150k
+    std::string content = FakeString(1024*100 + rand() % (50 * 1024), 'a' + c % 26);
 
     int fd = mfs_open(fn, O_CREAT|O_RDWR|O_APPEND, 0644);
     ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
@@ -141,6 +141,24 @@ TEST(CAPI, MultiWrite2) {
 
     EXPECT_EQ(0, mfs_close(fd));
   }
+}
+
+TEST(CAPI, MultiWrite3) {
+  char fn[260];
+  snprintf(fn, sizeof(fn), "test/multiwrite%d.txt", getpid());
+
+  int fd = mfs_open(fn, O_CREAT|O_RDWR|O_APPEND, 0644);
+  ASSERT_TRUE(fd > 0) << " fd:" << fd << " errno:" << errno;
+
+  int c = 1000;
+  while (c --) {
+    // 100k - 150k
+    std::string content = FakeString(1024*100 + rand() % (50 * 1024), 'a' + c % 26);
+
+    int a = mfs_write(fd, content.data(), content.size());
+    EXPECT_EQ(content.size(), a) << "return " << a;
+  }
+  EXPECT_EQ(0, mfs_close(fd));
 }
 
 TEST(CAPI, Unlink) {

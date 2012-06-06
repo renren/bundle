@@ -69,6 +69,13 @@ std::string BuildSimple(const Info &);
 bool ExtractWithEncode(const char *url, Info *);
 std::string BuildWithEncode(const Info &);
 
+#if 0
+// 3 use template
+// prefix/date/bid,offset,size.postfix
+bool ExtractWithTmpl(const char *url, Info *);
+std::string BuildWithTmpl(const Info &);
+#endif
+
 struct Setting {
   size_t max_bundle_size;
   int bundle_count_per_day;

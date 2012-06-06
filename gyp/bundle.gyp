@@ -47,8 +47,8 @@
 '../src/bundle/sixty_test.cc',
 '../src/bundle/bundle_test.cc',
 '../src/bundle/bundle_bench.cc',
-#'../src/bundle/bundlewrite.cc',
-#'../src/bundle/bundle_api_test.cc',
+'../src/bundle/tmpl.h',
+'../src/bundle/tmpl_test.cc',
       ],
       'include_dirs': [
         '../src',

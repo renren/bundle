@@ -133,12 +133,10 @@ TEST(Bundle, Example) {
   delete writer;
 
   // read
-#if 0
   std::string buf;
   ret = bundle::Reader::Read(url, &buf, storage);
   ASSERT_EQ(0, ret);
   ASSERT_EQ(buf, content);
-#endif
 }
 
 std::string Execute(const char *prog, ...) {
