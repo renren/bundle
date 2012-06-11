@@ -826,3 +826,37 @@ TEST(Bundle, BatchWrite) {
     ASSERT_EQ(readed_content, content);
   }
 }
+
+std::string FakeString(int size = 100, char ch = 'a') {
+  std::string content(size, ch);
+  for (int j=39; j<content.size(); j+=40)
+    content[j] = '\n';
+
+  content[content.size() - 1] = '\n';
+  return content;
+}
+
+TEST(Bundle, EmuUpload) {
+  const char *storage = "test1";
+
+  bundle::Writer *writer = bundle::Writer::Allocate("p/20120512", ".txt"
+    , 10*1024, storage, 0);
+  ASSERT_TRUE(writer);
+
+  int c = 1000;
+  while (c --) {
+    int size = 1024*100 + rand() % (50 * 1024);
+    std::string content = FakeString(size, 'a' + c % 26);
+    size_t written = 0;
+    std::string url;
+
+    int ret = writer->BatchWrite(content.data(), content.size(), &written, &url);
+    ASSERT_EQ(0, ret) << "content size: " << content.size() 
+      << " written:" << written
+      << " url:" << url;
+    ASSERT_EQ(content.size(), written);
+    ASSERT_FALSE(url.empty());
+  }
+
+  delete writer;
+}

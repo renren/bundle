@@ -2,7 +2,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,9 +23,6 @@
 
 #include "bundle/murmurhash2.h"
 #include "bundle/sixty.h"
-#include "bundle/filelock.h"
-
-// #define USE_CACHED_IO 1
 
 #ifdef OS_WIN
   #include <process.h>
@@ -36,10 +32,11 @@
   #define access _access
   #define snprintf _snprintf
   #define F_OK 04
-
-  // hack
-  #define USE_CACHED_IO 0
+#else
+  #include <unistd.h>
 #endif
+
+#include "bundle/filelock.h"
 
 #ifdef USE_MOOSECLIENT
   #include "mooseclient/moose_c.h"
@@ -336,27 +333,16 @@ int Writer::Write(const std::string &bundle_file, size_t offset
   , const char *user_data, size_t user_data_size) {
   if (written)
     *written = 0;
-#if USE_CACHED_IO
-  FILE *fp = fopen(bundle_file.c_str(), "r+b");
-  if (!fp)
-    return errno;
 
-  AutoFile af(fp);
-
-  int ret = fseek(fp, offset, SEEK_SET);
-#else
   int fd = open(bundle_file.c_str(), O_RDWR, 0644);
   if(-1 == fd)
     return errno;
   int ret = lseek(fd, offset, SEEK_SET);
-#endif
-
   if (-1 == ret) {
-#if !USE_CACHED_IO
     close(fd);
-#endif
-    return EIO;
+    return errno;
   }
+
   // header
   int total = Align1K(kFileHeaderSize + buf_size);
   boost::scoped_array<char> content(new char[total]);
@@ -375,20 +361,15 @@ int Writer::Write(const std::string &bundle_file, size_t offset
 
   memcpy(content.get() + kFileHeaderSize, buf, buf_size);
 
-#if USE_CACHED_IO
-  ret = fwrite(content.get(), sizeof(char), total, fp);
-  
-#else
   ret = write(fd, content.get(), total);
   close(fd);
-#endif
+
   if (ret < 0 || ret != total) {
    return errno;
   }
 
   if (written)
     *written = buf_size;
-
   return 0;
 }
 
@@ -399,7 +380,7 @@ int Writer::BatchWrite(const char *buf, size_t buf_size, size_t *written
   std::string this_url = EnsureUrl();
   int ret = Write(this_url, buf, buf_size, written, user_data, user_data_size);
   if (0 == ret) {
-    info_.offset += kFileHeaderSize + Align1K(buf_size); // for next time
+    info_.offset += *written; // kFileHeaderSize + Align1K(buf_size); // for next time
 
     if (url)
       *url = this_url;
@@ -567,7 +548,7 @@ Writer* Writer::Allocate(const char *prefix, const char *postfix
 
     w->info_.prefix = prefix;
     w->info_.postfix = postfix;
-    
+
     return w;
   } // while(true)
 

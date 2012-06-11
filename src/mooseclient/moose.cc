@@ -1132,8 +1132,8 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
       // crc32
       if (blockcrc != mycrc32(0, buff, blocksize)) {
         // LOG crc checksum error
-        std::cout << "crc32 error result:" << std::hex << mycrc32(0, buff, blocksize)
-          << " expect " << std::hex << blockcrc << std::endl;
+        // std::cout << "crc32 error result:" << std::hex << mycrc32(0, buff, blocksize)
+        //  << " expect " << std::hex << blockcrc << std::endl;
         return -1;
       }
 
@@ -1209,8 +1209,7 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
     crc = mycrc32(0,buff,size);
     put32bit(&ptr,crc);
 
-    // std::cerr << " CUTOCS_WRITE_DATA cid:" << chunk->id << std::endl;
-
+#if 0
     int ret = write(socket_, ibuff, 32);
     if (ret != 32) {
       std::cerr << "  WriteBlock write 1st failed ret: " << ret << " errno: " << errno << std::endl;
@@ -1222,6 +1221,17 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
       std::cerr << "  WriteBlock write 2nd failed ret: " << ret << " errno: " << errno << std::endl;
       return errno;
     }
+#else
+    struct iovec v[2] = {
+      {ibuff, 32},
+      {(void *)buff, size}
+    };
+    int ret = writev(socket_, v, 2);
+    if (ret != 32+size) {
+      std::cerr << "  WriteBlock writev failed ret: " << ret << " errno: " << errno << std::endl;
+      return errno;
+    }
+#endif
   }
 
   Buffer buf;
@@ -1548,7 +1558,8 @@ uint32_t File::Read(char *buf, size_t count) {
 uint64_t File::Seek(uint64_t offset, int whence) {
   uint64_t old_position = position_;
   FileAttribute attr;
-  if (STATUS_OK == master_->GetAttr(inode_, &attr)) {
+  int ret = master_->GetAttr(inode_, &attr);
+  if (STATUS_OK == ret) {
     if (whence == SEEK_SET && attr.size() >= offset) {
       position_ = offset;
       return old_position;
@@ -1558,6 +1569,13 @@ uint64_t File::Seek(uint64_t offset, int whence) {
       return old_position;
     }
   }
+#if 0
+  std::cout << "Seek " << offset << " whence:" << whence 
+    << " inode:" << inode_ 
+    << " ret:" << ret
+    << " attr.size:" << attr.size()
+    << " failed\n";
+#endif
   return -1;
 }
 

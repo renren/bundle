@@ -112,6 +112,24 @@
       ],
     },
     {
+      'target_name': 'bundlec',
+      'type': 'executable',
+      'msvs_guid': '2DEFD3FF-9903-41CD-AF2C-2249BE811652',
+      'include_dirs': ['../src'],
+      'dependencies': [
+        'base3.gyp:base3',
+        'cwf.gyp:cwfmain',
+        'bundle_with_mooseclient',
+      ],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_exception', '-lboost_system', '-lpthread'] }],
+        ['OS=="win"', {'libraries': ['ws2_32.lib'] }],
+      ],
+      'sources': [
+'../src/bundle/bundleaction.cc',
+      ],
+    },
+    {
       'target_name': 'bundle_write',
       'type': 'executable',
       'msvs_guid': '2DEFD3FF-9903-41CD-AF2C-2249BE811652',
