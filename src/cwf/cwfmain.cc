@@ -7,14 +7,16 @@
 #define FCGI_LISTENSOCK_FILENO 0
 
 #if defined(OS_LINUX)
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-# include <sys/socket.h>
-# include <sys/ioctl.h>
-# include <netinet/in.h>
-# include <sys/un.h>
-# include <sys/wait.h>
+  #include <sys/types.h>
+  #include <sys/stat.h>
+  #include <fcntl.h>
+  #include <sys/socket.h>
+  #include <sys/ioctl.h>
+  #include <netinet/in.h>
+  #include <sys/un.h>
+  #include <sys/wait.h>
+  #include <unistd.h>
+  #include <errno.h>
 #endif
 
 #include "base3/getopt_.h"
@@ -24,14 +26,10 @@
 
 #include "cwf/frame.h"
 #include "cwf/connect.h"
-
-#if defined(POSIX) || defined(OS_LINUX)
-#include <unistd.h>
-#include <errno.h>
-#endif
+#include "cwf/arguments.h"
 
 static void show_help () {
-  puts("Usage: cwf [options] [-- <fcgiapp> [fcgi app arguments]]\n" \
+  puts("Usage: cwf [options]\n" \
     "\n" \
     "Options:\n" \
     " -e             dump effective Action(s)\n" \
@@ -243,17 +241,18 @@ int MasterCycle(int thread_count, int fcgi_fd, const char * log_filename) {
   base::InstallSignal(SIGUSR1, SignalReopen);
   base::InstallSignal(SIGUSR2, SignalUpdate);
 
-  sigset_t           set;
+  sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGCHLD);
   sigaddset(&set, SIGALRM);
   sigaddset(&set, SIGINT);
   sigaddset(&set, SIGHUP);
   sigaddset(&set, SIGTERM);
+  // sigprocmask(SIG_SETMASK, &set, NULL);
 
   while (true) {
     int ret = pause();
-    LOG(INFO) << "supspend once" << ret;
+    LOG(INFO) << "suspend once" << ret;
 
     if (fork_count_) {
       int child = Fork(fcgi_fd, thread_count, log_filename);
@@ -291,7 +290,7 @@ int main(int argc, char* argv[]) {
 
   int o;
 
-  while (-1 != (o = getopt(argc, argv, "a:d:F:M:p:t:l:s:P:?hen"))) {
+  while (-1 != (o = getopt(argc, argv, "a:d:F:M:H:p:t:l:s:P:?hen"))) {
     switch(o) {
     case 'e' : 
       // disable std::err log
@@ -329,10 +328,11 @@ int main(int argc, char* argv[]) {
     case '?':
     case 'h': show_help(); return 0;
     default:
-      show_help();
-      return 0;
+      break;
     }
   }
+
+  cwf::Copy(argc, argv);
 
   OpenLogger(log_filename);
 

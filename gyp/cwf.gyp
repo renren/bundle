@@ -78,6 +78,8 @@
 # '../src/cwf/task.h',
 # '../src/cwf/tplaction.cc',
 # '../src/cwf/tplaction.h',
+'../src/cwf/arguments.cc',
+'../src/cwf/arguments.h',
       ],
       'export_dependent_settings': ['base3.gyp:base3'],
       'conditions': [
