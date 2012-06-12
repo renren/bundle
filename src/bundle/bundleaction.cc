@@ -8,11 +8,29 @@
 #include "cwf/frame.h"
 #include "bundle/bundle.h"
 
+#ifdef USE_MOOSECLIENT
+  #include "base3/once.h"
+  #include "cwf/arguments.h"
+  #include "mooseclient/moose_c.h"
+#endif
+
 using namespace cwf;
 
 namespace bundle {
 
 const char *the_storage_ = "test";
+
+#ifdef USE_MOOSECLIENT
+void ConnectToMaster() {
+  for (int i=0; i<cwf::argc - 1; ++i) {
+    if (0 == strcmp(cwf::argv[i], "-H")) {
+      mfs_connect(cwf::argv[i+1]);
+      return;
+    }
+  }
+}
+BASE_DECLARE_ONCE(once_connect);
+#endif
 
 struct WriteAction : public BaseAction {
   virtual bool Match(const std::string& url) const {
@@ -21,6 +39,10 @@ struct WriteAction : public BaseAction {
 
   virtual HttpStatusCode Process(Request * request, Response * response) {
     static const std::string kDefaultContentType("text/plain; charset=utf-8");
+
+#ifdef USE_MOOSECLIENT
+    base::BaseOnceInit(&once_connect, &ConnectToMaster);
+#endif
 
     if (request->method() != cwf::HV_POST)
       return HC_METHOD_NOT_ALLOWED;
@@ -80,6 +102,10 @@ struct WriteRedirectAction : public BaseAction {
   virtual HttpStatusCode Process(Request * request, Response * response) {
     static const std::string kDefaultContentType("text/plain; charset=utf-8");
 
+#ifdef USE_MOOSECLIENT
+    base::BaseOnceInit(&once_connect, &ConnectToMaster);
+#endif
+
     if (request->method() != cwf::HV_POST)
       return HC_METHOD_NOT_ALLOWED;
 
@@ -131,6 +157,10 @@ struct ReadAction : public cwf::BaseAction {
 
   virtual cwf::HttpStatusCode Process(cwf::Request * request, cwf::Response * response) {
     static const std::string kImageType("image/jpeg");
+
+#ifdef USE_MOOSECLIENT
+    base::BaseOnceInit(&once_connect, &ConnectToMaster);
+#endif
 
     std::string url = request->url();
 

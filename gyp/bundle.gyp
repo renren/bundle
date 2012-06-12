@@ -121,6 +121,7 @@
         'cwf.gyp:cwfmain',
         'bundle_with_mooseclient',
       ],
+      'defines': ['USE_MOOSECLIENT=1'],
       'conditions':[
         ['OS=="linux"', {'libraries': ['-lboost_thread', '-lboost_exception', '-lboost_system', '-lpthread'] }],
         ['OS=="win"', {'libraries': ['ws2_32.lib'] }],
