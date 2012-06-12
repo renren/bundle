@@ -299,6 +299,8 @@ bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_ad
     return false;
   }
 
+  session_id_ = 0;
+
   Buffer buf;
   ret = BuildRegister(&buf);
   if (!ret) {
@@ -433,10 +435,13 @@ bool MasterServer::BuildRegister(struct Buffer *output) {
 bool MasterServer::GotRegister(uint32_t, const uint8_t *payload, int) {
   // TDOO: session_flags, uid, gid, map uid, map gid
   uint32_t sid = get32bit(&payload);
+#if 0
   if (session_id_ == 0)
     session_id_ = sid;
   else
     ASSERT(sid == session_id_);
+#endif
+  session_id_ = sid;
   return true;
 }
 
