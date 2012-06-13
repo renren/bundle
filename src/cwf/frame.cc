@@ -107,6 +107,7 @@ struct CodeWithMessage {
 };
 
 const CodeWithMessage kDefaultMessage[] = {
+  {HC_NOT_FOUND, "Not Found"},
   {HC_BAD_REQUEST, "Bad Request"},
   {HC_UNAUTHORIZED, "Unauthorized"},
   {HC_METHOD_NOT_ALLOWED, "Method Not Allowed"},
@@ -119,11 +120,12 @@ const CodeWithMessage kDefaultMessage[] = {
 
 void FrameWork::ResponseError(Response* response, HttpStatusCode code, const char* message) {
   if (!message) {
-    for (const CodeWithMessage* cm = &kDefaultMessage[0]; cm->message; cm ++)
+    for (const CodeWithMessage* cm = &kDefaultMessage[0]; cm->message; cm ++) {
       if (cm->code == code) {
         message = cm->message;
         break;
       }
+    }
 
     if (!message)
       message = "TODO:";
@@ -188,24 +190,13 @@ void FastcgiProc(FrameWork* fw, int fd) {
 extern void InstallDefaultAction();
 
 int FastcgiMain(int thread_count, int fd, const char * log_filename) {
-#if 0
-  // TODO: remove, not need anymore
-  if (log_filename) {
-    using namespace logging;
-    InitLogging(log_filename, LOG_ONLY_TO_FILE
-      , DONT_LOCK_LOG_FILE
-      , APPEND_TO_OLD_LOG_FILE);
-
-    // pid, thread_id, timestamp, tickcount
-    SetLogItems(true, true, true, false);
-  }
-#endif
-
   base::RunStartupList();
 
 #if defined(OS_LINUX)
   base::InstallSignal(SIGINT, SignalQuit);
   base::InstallSignal(SIGTERM, SignalQuit);
+
+  base::InstallSignal(SIGPIPE, NULL);
 #endif
 
   std::auto_ptr<FrameWork> fw(new FrameWork());

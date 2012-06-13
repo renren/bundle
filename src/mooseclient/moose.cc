@@ -20,6 +20,7 @@
 #include <iostream>
 #include <iomanip>
 #include "base3/hashmap.h"
+#include "base3/logging.h"
 
 #include "boost/static_assert.hpp"
 
@@ -33,19 +34,6 @@
 
 #include "mooseclient/sockutil.h"
 #include "mooseclient/moose.h"
-
-#ifndef ASSERT
-#ifndef NDEBUG
-#if defined(__GNUC__)
-  #define ASSERT(x) if(!(x)) {printf("ASSERT failed %s %d\n", #x, __LINE__); __asm__("int $3");}
-#elif defined(_MSC_VER)
-  #define ASSERT(x) if(!(x)) __asm int 3;
-#endif
-#else // NDEBUG
-#define ASSERT(x)
-#endif // NDEBUG
-#endif // ASSERT
-
 
 #include "boost/crc.hpp"
 
@@ -202,17 +190,17 @@ int tcptoread(int sock, uint8_t *buff,uint32_t leng) {
 bool ReadCommand(int fd, struct Buffer *input, uint32_t *cmd_, uint32_t *length_) {
   input->Alloca(8);
 
+  if (cmd_) *cmd_ = 0;
+  if (length_) *length_ = 0;
+
   uint32_t cmd = ANTOAN_NOP;
   uint32_t length = 0;
-  while (cmd == ANTOAN_NOP) {
+  do {
     int ret = tcptoread(fd, input->ptr, 8);
-    if (ret <= 0) {
-      std::cerr << "tcptoread " << fd << " failed " << errno << std::endl;
+    if (ret != 8) {
+      PLOG(ERROR) << "tcptoread " << fd << " failed " << errno;
       return false;
     }
-    
-    if (8 != ret)
-      return false;
 
     const uint8_t *mem = input->ptr;
 
@@ -221,14 +209,14 @@ bool ReadCommand(int fd, struct Buffer *input, uint32_t *cmd_, uint32_t *length_
   
     if (cmd == ANTOAN_NOP) {
       // eat here
-      ASSERT(length == 4);
+      LOG_IF(ERROR, length != 4) << "ANTOAN_NOP size not match, which is " << length << " desire 4";
       ret = tcptoread(fd, input->ptr, 4);
-      ASSERT(ret == 4);
+      LOG_IF(ERROR, ret != 4) << "ANTOAN_NOP reply size not match, which is " << ret << " desire 4";
     }
-  }
+  } while (cmd == ANTOAN_NOP);
 
   if (length > 64 *1024 *1024) {
-    std::cerr << " unexpected length " << length << std::endl;
+    LOG(ERROR) << " ReadCommand got an unexpected length " << length;
     return false;
   }
 
@@ -241,11 +229,9 @@ bool ReadCommand(int fd, struct Buffer *input, uint32_t *cmd_, uint32_t *length_
   input->Alloca(8 + length);
 
   uint32_t ret = tcptoread(fd, input->ptr + 8, length);
-  if (ret == length)
-    return true;
-  else
-    std::cerr << " unexpected tcptoread " << ret << std::endl;
-  return false;
+  LOG_IF(ERROR, ret != length) << "Read data failed expected " << length
+      << " but " << ret << " readed";
+  return ret == length;
 }
 
 uint8_t *BuildCommand(struct Buffer *output, uint32_t cmd, uint32_t length, uint32_t session_id) {
@@ -254,8 +240,8 @@ uint8_t *BuildCommand(struct Buffer *output, uint32_t cmd, uint32_t length, uint
   uint8_t *wptr = output->ptr;
   put32bit(&wptr, cmd);
   put32bit(&wptr, 4 + length);
+  LOG_IF(ERROR, length > 65*1024) << "BuildCommand packet too long cmd:" << cmd << " length:" << length;
   put32bit(&wptr, session_id);
-
   return wptr;
 }
 
@@ -276,11 +262,10 @@ bool MasterServer::Connect(const char *host_ip) {
 
   // synchronized connect, and register
 bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_address) {
-  ASSERT(0 == master_socket_);
+  LOG_IF(ERROR, 0 != master_socket_) << "master_socket_ not inited?";
   int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  ASSERT(sock > 0);
   if (sock < 0) {
-    perror("socket");
+    PLOG(ERROR) << "socket";
     return false;
   }
 
@@ -291,9 +276,8 @@ bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_ad
   }
 
   int ret = connect(sock, addr, addr_len);
-  ASSERT(ret == 0);
   if (ret < 0) {
-    perror("connect to master failed");
+    PLOG(ERROR) << "connect to master failed";
 
     close(sock);
     return false;
@@ -304,15 +288,14 @@ bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_ad
   Buffer buf;
   ret = BuildRegister(&buf);
   if (!ret) {
-    std::cerr << "BuildRegister failed\n";
+    LOG(ERROR) << "Build register message failed, socket disconnected.";
     close(sock);
     return false;
   }
 
   ret = write(sock, buf.ptr, buf.used);
-  ASSERT(ret == buf.used);
   if (0 == ret) {
-    perror("write");
+    PLOG(ERROR) << "Connect to master, write failed";
     close(sock);
     return false;
   }
@@ -323,11 +306,11 @@ bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_ad
     close(sock);
     return false;
   }
-  ASSERT(cmd == MATOCU_FUSE_REGISTER);
+  LOG_IF(ERROR, cmd != MATOCU_FUSE_REGISTER) << "Register, got unexpected command";
 
   // TODO: avoid magic 8
   ret = GotRegister(cmd, buf.ptr + 8, length);
-  ASSERT(session_id_);
+  LOG_IF(ERROR, 0 == session_id_) << "Register, got unexpected session id";
 
   if (remember_address) {
     hostaddr_ = new char[addr_len];
@@ -353,7 +336,7 @@ void MasterServer::EnsureConnect() {
     bool f = Connect((struct sockaddr*)hostaddr_, hostaddr_len_, false);
     if (f)
       break;
-    std::cerr << "EnsureConnect retry once left " << retry << std::endl;
+    LOG(ERROR) << "EnsureConnect retry once, left " << retry << " times";
     sleep(1);
   } while (retry-- > 0);
 
@@ -370,7 +353,6 @@ void MasterServer::Disconnect() {
 #endif
 
     close(master_socket_);
-
     master_socket_ = 0;
   }
 }
@@ -414,9 +396,9 @@ bool MasterServer::BuildRegister(struct Buffer *output) {
     put32bit(&wptr, session_id_);
   }
 
-  put16bit(&wptr,VERSMAJ);
-  put8bit(&wptr,VERSMID);
-  put8bit(&wptr,VERSMIN);
+  put16bit(&wptr,kVERSMAJ);
+  put8bit(&wptr,kVERSMID);
+  put8bit(&wptr,kVERSMIN);
 
   if (0 == session_id_) {
     put32bit(&wptr,ileng);
@@ -439,9 +421,10 @@ bool MasterServer::GotRegister(uint32_t, const uint8_t *payload, int) {
   if (session_id_ == 0)
     session_id_ = sid;
   else
-    ASSERT(sid == session_id_);
+    LOG_IF(ERROR, sid != session_id_) << "reconnect failed";
 #endif
   session_id_ = sid;
+  LOG(INFO) << "Connect session id: " << sid;
   return true;
 }
 
@@ -455,7 +438,6 @@ bool MasterServer::BuildQueryInfo(Buffer *output) {
   put32bit(&wptr, CUTOMA_INFO);
   put32bit(&wptr, 0);
   output->used = wptr - output->ptr;
-
   return true;
 }
 
@@ -476,7 +458,8 @@ int MasterServer::Lookup(uint32_t parent, const char *name, uint32_t *inode, Fil
 
   int length;
   const uint8_t *rptr = SendAndReceive(&buf, MATOCU_FUSE_LOOKUP, &length);
-  if (!rptr) return ERROR_IO;
+  if (!rptr)
+    return ERROR_IO;
 
   if (length == 1) {
     uint8_t status = get8bit(&rptr);
@@ -493,7 +476,8 @@ int MasterServer::Lookup(uint32_t parent, const char *name, uint32_t *inode, Fil
   }
 
   // TODO: remove
-  std::cerr << "lookup " << name << " unexpected size " << length << std::endl;
+  LOG(ERROR) << "Lookup " << name << " failed, got unexpected size " << length
+    << " will disconnect";
   Disconnect();
   return ERROR_IO;
 }
@@ -782,7 +766,7 @@ public:
     }
 
     ChunkServer *cs = new ChunkServer;
-    // std::cerr << " new cs:" << ip << ":" << port << std::endl;
+    // LOG(INFO) << " new cs:" << std::hex <<  ip << ":" << std::dec << port;
     if (!cs->Connect(ip, port)) {
       delete cs;
       return 0;
@@ -818,25 +802,25 @@ Cached::MapType Cached::map_;
 const uint8_t *MasterServer::SendAndReceive(struct Buffer *buf, uint32_t expect_cmd, int *left_length) {
   EnsureConnect();
 
-  ASSERT(buf->used > 0);
+  LOG_IF(ERROR, buf->used <= 0) << "Send empty buffer?";
   int ret = 0;
 
   uint32_t cmd, length;
   int retry = 3;
   do {
     ret = write(master_socket_, buf->ptr, buf->used);
+    LOG_IF(ERROR, ret != buf->used) << "write failed";
     if (!ret) {
       Disconnect();
-      std::cerr << "retry [write] once\n";
+      LOG(ERROR) << "retry [write] once";
       EnsureConnect();
       continue;
     }
-    ASSERT(ret == buf->used);
 
     ret = moose::ReadCommand(master_socket_, buf, &cmd, &length);
     if (!ret) {
       Disconnect();
-      std::cerr << "retry [read] once\n";
+      PLOG(ERROR) << "retry [read] once";
       EnsureConnect();
       continue;
     }
@@ -846,12 +830,14 @@ const uint8_t *MasterServer::SendAndReceive(struct Buffer *buf, uint32_t expect_
   if (ret && cmd == expect_cmd) {
     const uint8_t *rptr = buf->ptr + 8;
     uint32_t packet_id = get32bit(&rptr);
-    ASSERT(packet_id == session_id_);
+    LOG_IF(ERROR, packet_id != session_id_) << "session_id not match";
 
     if (left_length)
       *left_length = length - 4;
     return rptr;
   }
+  LOG(ERROR) << "SendAndReceive failed, expected command: " << expect_cmd
+    << " got " << cmd;
   return NULL;
 }
 
@@ -964,11 +950,10 @@ int MasterServer::WriteChunkEnd(uint64_t chunkid, uint32_t inode, uint64_t lengt
 
 
 bool ChunkServer::Connect(uint32_t ip, uint16_t port) {
-  ASSERT(0 == socket_);
+  LOG_IF(ERROR, 0 != socket_) << "socket_ not init?";
   socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  // ASSERT(socket_ > 0);
   if (socket_ < 0) {
-    perror("socket");
+    PLOG(ERROR) << "socket";
     return false;
   }
 
@@ -979,9 +964,8 @@ bool ChunkServer::Connect(uint32_t ip, uint16_t port) {
   sin.sin_addr.s_addr = htonl(ip);
 
   int ret = connect(socket_, (struct sockaddr *)&sin, sizeof(sockaddr_in));
-  ASSERT(ret == 0);
   if (ret < 0) {
-    perror("chunk server connect failed");
+    PLOG(ERROR) << "chunk server connect failed";
 
     close(socket_);
     socket_ = 0;
@@ -1018,7 +1002,7 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
 
   int ret = write(socket_, ibuff, 28);
   if (ret != 28) {
-    perror("chunk server write");
+    PLOG(ERROR) << "Send READ command to CS failed";
     return ERROR_IO;
   }
 
@@ -1028,9 +1012,9 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
   for (;;) {
     // detached package should not use ReadCommand
     int ret = tcptoread(socket_, input.ptr, 8);
-    ASSERT(ret == 8);
     if (ret != 8) {
-      perror("chunk server read");
+      PLOG(ERROR) << "Read from CS failed " << std::hex << ip_ 
+        << ":" << std::dec << port_;
       return ERROR_IO;
     }
 
@@ -1039,11 +1023,11 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
     uint32_t length = get32bit(&rptr);
     if (cmd==CSTOCU_READ_STATUS) {
       if (length!=9) {
-        // LOG(LOG_NOTICE,"readblock; READ_STATUS incorrect message size (%"PRIu32"/9)",l);
+        LOG(ERROR) << "ReadBlock, READ_STATUS incorrect message size " << length;
         return -1;
       }
       if (tcptoread(socket_,input.ptr,9)!=9) {
-        // LOG(LOG_NOTICE,"readblock; READ_STATUS tcpread error: %s",strerr(errno));
+        PLOG(ERROR) << "ReadBlock, tcpread failed";
         return -1;
       }
       rptr = input.ptr;
@@ -1053,26 +1037,25 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
         return -1;
       }
       if (t64!=chunk->id) {
-        // LOG(LOG_NOTICE,"readblock; READ_STATUS incorrect chunkid (got:%"PRIu64" expected:%"PRIu64")",t64,chunkid);
+        LOG(ERROR) << "ReadBlock, chunk id not match";
         return -1;
       }
       if (size!=0) {
-        // LOG(LOG_NOTICE,"readblock; READ_STATUS incorrect data size (left: %"PRIu32")",size);
+        LOG(ERROR) << "ReadBlock, TODO: size is zero?";
         return -1;
       }
       return 0;
     }
     else if (cmd == CSTOCU_READ_DATA) {
-      ASSERT(length >= 20);
       if (length < 20) {
-        // LOG(WARNING) << "READ_DATA incorrect message size:" << 
+        LOG(INFO) << "READ_DATA incorrect message size:" << length;
         return -1;
       }
 
       input.Alloca(20);
       ret = tcptoread(socket_, input.ptr, 20);
       if (20 != ret) {
-        // LOG(WARNING) << "READ_DATA tcpread error
+        PLOG(ERROR) << "ReadBlock, tcpread failed";
         return -1;
       }
 
@@ -1080,7 +1063,8 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
 
       uint64_t t64 = get64bit(&rptr);
       if (t64 != chunk->id) {
-        // LOG(WARNING) << "READ_DATA incorrect chunkid got:" << t64 << " excepted:" << chunkid;
+        LOG(ERROR) << "READ_DATA incorrect chunkid got:" << std::hex << t64 
+          << " excepted:" << std::hex << chunk->id;
         return -1;
       }
       uint16_t blockno = get16bit(&rptr);
@@ -1137,8 +1121,8 @@ int ChunkServer::ReadBlock(Chunk *chunk,uint32_t offset,uint32_t size,uint8_t *b
       // crc32
       if (blockcrc != mycrc32(0, buff, blocksize)) {
         // LOG crc checksum error
-        // std::cout << "crc32 error result:" << std::hex << mycrc32(0, buff, blocksize)
-        //  << " expect " << std::hex << blockcrc << std::endl;
+        LOG(INFO) << "crc32 error result:" << std::hex << mycrc32(0, buff, blocksize)
+          << " expect " << std::hex << blockcrc;
         return -1;
       }
 
@@ -1171,7 +1155,7 @@ int ChunkServer::WriteBlockInit(Chunk *chunk, uint32_t *writeid) {
 
   buf.used = wptr - buf.ptr;
   int ret = write(socket_, buf.ptr, buf.used);
-  ASSERT(ret == buf.used);
+  LOG_IF(ERROR, ret != buf.used) << "write return failed";
 
   buf.Alloca(8 + 13);
   ret = tcptoread(socket_, buf.ptr, 8 + 13);
@@ -1183,13 +1167,13 @@ int ChunkServer::WriteBlockInit(Chunk *chunk, uint32_t *writeid) {
   uint32_t cmd = get32bit(&rptr);
   uint32_t length = get32bit(&rptr);
 
-  ASSERT(CSTOCU_WRITE_STATUS == cmd);
-  ASSERT(13 == length);
+  LOG_IF(ERROR, CSTOCU_WRITE_STATUS != cmd) << "cmd unexpected";
+  LOG_IF(ERROR, 13 != length) << "length unexpected";
 
   uint64_t recchunkid = get64bit(&rptr);
   uint32_t recwriteid = get32bit(&rptr);
   uint8_t recstatus = get8bit(&rptr);
-  ASSERT(recchunkid == chunk->id);
+  LOG_IF(ERROR, recchunkid != chunk->id) << "chunk id unexpected";
   
   if (recstatus != STATUS_OK)
     return recstatus;
@@ -1217,13 +1201,13 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
 #if 0
     int ret = write(socket_, ibuff, 32);
     if (ret != 32) {
-      std::cerr << "  WriteBlock write 1st failed ret: " << ret << " errno: " << errno << std::endl;
+      LOG(ERROR) << "  WriteBlock write 1st failed ret: " << ret << " errno: " << errno;
       return errno;
     }
 
     ret = write(socket_, buff, size);
     if (ret != size) {
-      std::cerr << "  WriteBlock write 2nd failed ret: " << ret << " errno: " << errno << std::endl;
+      LOG(ERROR) << "  WriteBlock write 2nd failed ret: " << ret << " errno: " << errno;
       return errno;
     }
 #else
@@ -1233,7 +1217,7 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
     };
     int ret = writev(socket_, v, 2);
     if (ret != 32+size) {
-      std::cerr << "  WriteBlock writev failed ret: " << ret << " errno: " << errno << std::endl;
+      LOG(ERROR) << "  WriteBlock writev failed ret: " << ret << " errno: " << errno;
       return errno;
     }
 #endif
@@ -1250,16 +1234,15 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
   uint32_t cmd = get32bit(&rptr);
   uint32_t length = get32bit(&rptr);
 
-  ASSERT(CSTOCU_WRITE_STATUS == cmd);
-  ASSERT(13 == length);
+  LOG_IF(ERROR, CSTOCU_WRITE_STATUS != cmd) << "cmd unexpected";;
+  LOG_IF(ERROR, 13 != length) << "length unexpected";;
 
   uint64_t recchunkid = get64bit(&rptr);
   uint32_t recwriteid = get32bit(&rptr);
   uint8_t recstatus = get8bit(&rptr);
 
   // TODO: not match here
-  // ASSERT(recwriteid == writeid);
-  ASSERT(recchunkid == chunk->id);
+  LOG_IF(ERROR, recchunkid != chunk->id) << "WriteBlock return chunkid not match";
 
   if (recstatus != STATUS_OK)
     return recstatus;
@@ -1267,10 +1250,9 @@ int ChunkServer::WriteBlock(Chunk *chunk, uint32_t writeid,uint16_t blockno,uint
   return STATUS_OK;
 }
 
-
 int File::Open(const char*pathname, int flags, mode_t mode) {
-  ASSERT(!inode_);
-  ASSERT(master_);
+  LOG_IF(WARNING, inode_) << "reuse File, maybe leak? " << inode_;
+  LOG_IF(WARNING, !master_) << "master_ not valid";
   uint32_t inode;
   int ret = master_->Lookup(pathname, &inode, NULL);
   if (ERROR_ENOENT == ret && (flags & O_CREAT)) {
@@ -1311,8 +1293,8 @@ int File::Open(const char*pathname, int flags, mode_t mode) {
 }
 
 int File::Create(const char *pathname, mode_t mode) {
-  ASSERT(!inode_);
-  ASSERT(master_);
+  LOG_IF(WARNING, inode_) << "reuse File, maybe leak?";
+  LOG_IF(WARNING, !master_) << "master_ not valid";
 
   const char *name = NULL;
   // get parent
@@ -1321,7 +1303,7 @@ int File::Create(const char *pathname, mode_t mode) {
   size_t len = strlen(pathname);
   if (slash && slash != pathname + len) {
     std::string parentname(pathname, slash - pathname);
-    // std::cout << "loop up " << parentname << std::endl;
+    // LOG(INFO) << "loop up " << parentname;
     int ret = master_->Lookup(parentname.c_str(), &parent, NULL);
     if (STATUS_OK != ret)
       return ret;
@@ -1352,7 +1334,7 @@ int File::Close() {
       ret = master_->Truncate(inode_, 0, position_, &attr2);
       if (STATUS_OK != ret)
         return ret;
-      ASSERT(attr2.size() == position_);
+      LOG_IF(ERROR, attr2.size() != position_) << "truncate failed?";
     }
   }
   inode_ = 0;
@@ -1369,12 +1351,12 @@ uint32_t File::Write(const char *buf, size_t count) {
   while (count > 0) {
     int part = K64 - (position_ + K64) % K64;
     part = std::min(K64, (int)count);
-    int written = WriteInternal(buf, part);
-    if (written == part) {
+    int done = WriteInternal(buf, part);
+    if (done == part) {
       buf += part;
       count -= part;
 
-      ret += written;
+      ret += done;
     }
     else
       return 0;
@@ -1383,7 +1365,7 @@ uint32_t File::Write(const char *buf, size_t count) {
 }
 
 uint32_t File::WriteInternal(const char *buf, size_t count) {
-  ASSERT(inode_);  
+  LOG_IF(ERROR, !inode_) << "File not open";
   uint64_t end = position_ + count;
 
   uint64_t write_position = position_;
@@ -1393,10 +1375,10 @@ uint32_t File::WriteInternal(const char *buf, size_t count) {
     Chunk chunk;
     int ret = master_->WriteChunk(inode_, chunk_index, &file_length, &chunk);
     if (ret != STATUS_OK) {
-      std::cerr << "WriteChunk failed " << ret 
+      LOG(ERROR) << "WriteChunk failed " << ret 
         << " chunk index: " << chunk_index
         << " offset: " << write_position
-        << std::endl;
+       ;
       return 0; // TODO: LOG
     }
 
@@ -1418,8 +1400,7 @@ uint32_t File::WriteInternal(const char *buf, size_t count) {
     uint32_t writeid;
     ret = cs->WriteBlockInit(&chunk, &writeid);
     if (ret != STATUS_OK) {
-      std::cerr << "  WriteBlockInit failed, ret:" << ret
-        << std::endl;
+      LOG(ERROR) << "  WriteBlockInit failed, ret:" << ret;
       return 0;
     }
 
@@ -1435,11 +1416,10 @@ uint32_t File::WriteInternal(const char *buf, size_t count) {
         // do not return, if error occurred
         delete cs;
 
-        std::cerr << "  WriteBlock failed " << ret 
+        LOG(ERROR) << "  WriteBlock failed " << ret 
           << " blockno: " << blockno
           << " block_offset: " << block_offset
-          << " block_size: " << block_size
-          << std::endl;
+          << " block_size: " << block_size;
         return 0;
       }
 
@@ -1460,7 +1440,7 @@ uint32_t File::WriteInternal(const char *buf, size_t count) {
 
     ret = master_->WriteChunkEnd(chunk.id, inode_, write_position);
     if (ret != STATUS_OK) {
-      std::cerr << "WriteChunkEnd failed " << ret << std::endl;
+      LOG(ERROR) << "WriteChunkEnd failed " << ret;
       return 0;
     }
 
@@ -1473,7 +1453,26 @@ uint32_t File::WriteInternal(const char *buf, size_t count) {
 }
 
 uint32_t File::Read(char *buf, size_t count) {
-  ASSERT(inode_);
+  // split into 64K once 
+  int ret = 0;
+  while (count > 0) {
+    int part = K64 - (position_ + K64) % K64;
+    part = std::min(K64, (int)count);
+    int done = ReadInternal(buf, part);
+    if (done == part) {
+      buf += part;
+      count -= part;
+
+      ret += done;
+    }
+    else
+      return 0;
+  }
+  return ret;
+}
+
+uint32_t File::ReadInternal(char *buf, size_t count) {
+  LOG_IF(ERROR, !inode_) << "File not open";
   if (position_ >= MFS_MAX_FILE_SIZE)
     return EFBIG;
   
@@ -1486,7 +1485,7 @@ uint32_t File::Read(char *buf, size_t count) {
     Chunk chunk;
     int status = master_->ReadChunk(inode_, chunk_index, &file_length, &chunk);
     if (status != STATUS_OK) {
-      std::cerr << "ReadChunk failed, status: " << status << "\n";
+      LOG(ERROR) << "ReadChunk failed, status: " << status << "\n";
       return 0;
     }
     
@@ -1494,7 +1493,7 @@ uint32_t File::Read(char *buf, size_t count) {
       end = file_length;
 
     if (file_length < position_) {
-      std::cerr << "position exceeded\n";
+      LOG(ERROR) << "position exceeded\n";
       return 0;
     }
 
@@ -1502,7 +1501,7 @@ uint32_t File::Read(char *buf, size_t count) {
     uint64_t chunk_size = std::min(end, uint64_t((chunk_index+1) * M64)) - write_position;
 
     if (chunk.location.size() < 1) {
-      std::cerr << "inode: " << inode_ << " location empty\n";
+      LOG(ERROR) << "inode: " << inode_ << " location empty\n";
       time_t now = time(0);
        // hack for reconnected 
       if (now - last_registered_ < 10) {
@@ -1524,16 +1523,18 @@ uint32_t File::Read(char *buf, size_t count) {
 
     if (!cs) {
       // LOG(WARNING) << 
-      std::cerr << inode_ << " chunk server connect failed\n";
+      LOG(ERROR) << inode_ << " chunk server connect failed\n";
       return 0;
     }
 
     int ret = cs->ReadBlock(&chunk, chunk_offset, chunk_size, (uint8_t *)buf);
 
+    // LOG(INFO) << "ReadBlock chunk_size:" << chunk_size;
+
     if (ret != STATUS_OK) {
       // do not return, if error occurred
       delete cs;
-      std::cerr << "chunk server ReadBlock failed ret: " << ret << "\n";
+      LOG(ERROR) << "chunk server ReadBlock failed ret: " << ret;
 
       time_t now = time(0);
       // hack for reconnected 
@@ -1575,7 +1576,7 @@ uint64_t File::Seek(uint64_t offset, int whence) {
     }
   }
 #if 0
-  std::cout << "Seek " << offset << " whence:" << whence 
+  LOG(INFO) << "Seek " << offset << " whence:" << whence 
     << " inode:" << inode_ 
     << " ret:" << ret
     << " attr.size:" << attr.size()

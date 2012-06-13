@@ -8,8 +8,8 @@
   'conditions': [
     ['OS=="linux"', {
       'target_defaults': {
-        'cflags': ['-fPIC', '-g', '-O0', '-Wall'], #, '-std=c++0x'],
-        'defines': ['OS_LINUX', '_FILE_OFFSET_BITS=64'],
+        'cflags': ['-fPIC', '-g', '-O2', '-Wall'], #, '-std=c++0x'],
+        'defines': ['OS_POSIX', 'OS_LINUX', '_FILE_OFFSET_BITS=64'],
       },
     },],
     ['OS=="win"', {
@@ -66,6 +66,28 @@
       ],
       'sources': [
 '../src/mooseclient/api_c_test.cc',
+      ],
+    },
+    {
+      'target_name': 'moose_test',
+      'type': 'executable',
+      'msvs_guid': '2DEFD412-AA04-42CD-A03C-3349BE811654',
+      'include_dirs': [
+        '../src',
+        '../src/testing/gtest/include'
+      ],
+      'dependencies': [
+        'gtest.gyp:gtest', 'mooseclient'
+      ],
+      'conditions':[
+        ['OS=="linux"', {'libraries': ['-lrt', '-lpthread', '-ldl'] }],
+        ['OS=="win"', {
+          'libraries': ['ws2_32.lib'],
+          'dependencies': ['base3.gyp:base3'],
+        }],
+      ],
+      'sources': [
+'../src/mooseclient/moose_test.cc',
       ],
     },
     {

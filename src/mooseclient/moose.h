@@ -86,6 +86,7 @@ public:
   // synchronized connect, and register
   bool Connect(const char *host_ip);
   bool Connect(struct sockaddr *addr, int addr_len, bool remember_address = true);
+  void Disconnect();
 
   int Lookup(uint32_t parent, const char *name, uint32_t *inode, FileAttribute *attr);
   int Lookup(const char *name, uint32_t *inode, FileAttribute *attr);
@@ -119,7 +120,6 @@ public:
   int WriteChunkEnd(uint64_t chunkid, uint32_t inode, uint64_t length);
 private:
   void EnsureConnect();
-  void Disconnect();
 
   const uint8_t *SendAndReceive(struct Buffer *buf, uint32_t expect_cmd, int *left_length);
   bool ReadCommand(struct Buffer *input, uint32_t *cmd_, uint32_t *length_);
@@ -142,9 +142,9 @@ private:
   int hostaddr_len_;
 
   enum {
-    VERSMAJ = 1,
-    VERSMID = 6,
-    VERSMIN = 24,
+    kVERSMAJ = 1,
+    kVERSMID = 6,
+    kVERSMIN = 24,
   };
 };
 
@@ -199,6 +199,7 @@ public:
 
 private:
   uint32_t WriteInternal(const char *buf, size_t count);
+  uint32_t ReadInternal(char *buf, size_t count);
 
   MasterServer* master_;
   uint64_t position_;

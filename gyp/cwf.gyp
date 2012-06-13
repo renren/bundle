@@ -4,7 +4,7 @@
     ['OS=="linux"', {
       'target_defaults': {
         'cflags': ['-fPIC', '-g', '-O2',],
-        'defines': ['OS_LINUX'],
+        'defines': ['OS_POSIX', 'OS_LINUX'],
       },
     },],
     ['OS=="win"', {

@@ -26,9 +26,12 @@ TEST(CAPI, Example) {
 
   char buf[16];
   EXPECT_EQ(a, mfs_read(fd, buf, sizeof(buf)));
+  EXPECT_STREQ(buf, sz);
 
   EXPECT_EQ(a, mfs_lseek(fd, 1, SEEK_SET));
   EXPECT_EQ(a-1, mfs_read(fd, buf, sizeof(buf)));
+  buf[a-1] = 0;
+  EXPECT_STREQ(buf, sz+1);
 
   EXPECT_EQ(0, mfs_close(fd));
 }

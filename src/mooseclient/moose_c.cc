@@ -5,7 +5,6 @@
 #include "mooseclient/moose.h"
 
 #include <errno.h>
-#include <iostream>
 
 static moose::MasterServer *master_ = NULL;
 typedef std::hash_map<int, moose::File*> TrapedMapType;
