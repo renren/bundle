@@ -242,14 +242,13 @@ int Reader::Read(const std::string &url, std::string *buf
   int ret = Read(bundle_name.c_str(), info.offset, info.size
     , content, info.size, &readed, ud, kUserDataSize);
 
-  if (buf)
+  if (buf && ret)
     *buf = std::string(content, readed);
 
   delete [] content;
 
-  if (user_data) {
+  if (user_data)
     *user_data = std::string(ud, kUserDataSize);
-  }
 
   return ret;
 }

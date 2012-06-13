@@ -177,12 +177,10 @@ struct ReadAction : public cwf::BaseAction {
       snprintf(sz, 16, "%d", buf.size());
       response->header().Add(cwf::HH_CONTENT_LENGTH, sz);
       response->WriteRawWithHeader(buf.c_str(), buf.size());
-    } else {
-      response->header().set_status_code(cwf::HC_NOT_FOUND, "Not Found");
-      response->OutputHeader();
-      return cwf::HC_NOT_FOUND;
+      return cwf::HC_OK;
     }
-    return cwf::HC_OK;
+
+    return cwf::HC_NOT_FOUND;
   }
 };
 
