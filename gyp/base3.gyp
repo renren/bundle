@@ -6,7 +6,7 @@
       'target_defaults': {
         'cflags': ['-fPIC', '-g', '-O2', '-pthread'],
          # USE_PROFILER
-        'defines': ['OS_LINUX','BASE_DISABLE_POOL', 'NO_TCMALLOC'],
+        'defines': ['OS_POSIX', 'OS_LINUX','BASE_DISABLE_POOL', 'NO_TCMALLOC'],
       },
     },],
     ['OS=="win"', {

@@ -5,6 +5,9 @@
 #include <fstream>
 #include <errno.h> 
 
+#ifdef OS_POSIX
+#include <unistd.h>
+#endif
 
 
 // 是否被调用过的测试类
@@ -41,6 +44,9 @@ TEST(LoggingTest, Macro) {
   VLOG(1) << "verbose log";
   VLOG_IS_ON(1);
 
+#ifdef OS_POSIX
+  close(121);
+#endif
   PLOG(INFO) << "with error number";
 }
 

@@ -717,12 +717,12 @@ ErrnoLogMessage::ErrnoLogMessage(const char* file,
 std::string safe_strerror(int err) {
   const int buffer_size = 256;
   char buf[buffer_size];
-  strerror_r(err, buf, sizeof(buf));
-  return std::string(buf);
+  char *ret = strerror_r(err, buf, sizeof(buf));
+  return std::string(ret);
 }
 
 ErrnoLogMessage::~ErrnoLogMessage() {
-  stream() << ": " << safe_strerror(err_);
+  stream() << ": (" << err_ << ")" << safe_strerror(err_);
 }
 #endif  // OS_WIN
 
