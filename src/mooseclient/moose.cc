@@ -17,7 +17,6 @@
 #include <string.h> // memset
 
 #include <algorithm>
-#include <iostream>
 #include <iomanip>
 #include "base3/hashmap.h"
 #include "base3/logging.h"
