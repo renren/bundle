@@ -1186,7 +1186,7 @@ int OS_Accept(int listen_sock, int fail_on_intr, const char *webServerAddrs)
             else {  /* socket >= 0 */
                 int set = 1;
                 struct timeval tvo;
-                tvo.tv_sec = 10; // 10 secons is enough
+                tvo.tv_sec = 10; // 10 seconds is enough
                 tvo.tv_usec = 0;
 
                 if (sa.in.sin_family != AF_INET)

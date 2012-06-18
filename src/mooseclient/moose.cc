@@ -271,7 +271,15 @@ bool MasterServer::Connect(struct sockaddr *addr, int addr_len, bool remember_ad
   {
     // TODO: timeout
     int yes=1;
-    // setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&yes, sizeof(int));
+    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(int));
+    
+#ifdef SO_RCVTIMEO
+    struct timeval tvo;
+    tvo.tv_sec = 10; // 10 seconds is enough
+    tvo.tv_usec = 0;
+
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tvo, sizeof(tvo));
+#endif
   }
 
   int ret = connect(sock, addr, addr_len);
