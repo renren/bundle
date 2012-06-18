@@ -755,7 +755,7 @@ int MasterServer::Create(uint32_t parent, const char *name, mode_t mode, uint32_
 class Cached {
 public:
   static ChunkServer *Create(uint32_t ip, uint16_t port, bool is_read) {
-    if (is_read) {
+    if (false && is_read) {
       uint64_t key = Key(ip, port, is_read);
       MapType::iterator i = map_.find(key);
       if (i != map_.end()) {
@@ -779,7 +779,7 @@ public:
   }
 
   static void Return(ChunkServer *cs, bool is_read) {
-    if (is_read) {
+    if (false && is_read) {
       uint64_t key = Key(cs->ip(), cs->port(), is_read);
       MapType::iterator i = map_.find(key);
       if (i == map_.end()) {
@@ -1458,6 +1458,7 @@ uint32_t File::Read(char *buf, size_t count) {
     int part = K64 - (position_ + K64) % K64;
     part = std::min(K64, (int)count);
     int done = ReadInternal(buf, part);
+    // LOG(INFO) << " part:" << position_ << " - " << part << ", done: " << done;
     if (done == part) {
       buf += part;
       count -= part;
@@ -1533,6 +1534,7 @@ uint32_t File::ReadInternal(char *buf, size_t count) {
     if (ret != STATUS_OK) {
       // do not return, if error occurred
       delete cs;
+      cs = NULL;
       LOG(ERROR) << "chunk server ReadBlock failed ret: " << ret;
 
       time_t now = time(0);
@@ -1541,6 +1543,7 @@ uint32_t File::ReadInternal(char *buf, size_t count) {
         sleep(1);
         continue;
       }
+      return ret;
     }
     Cached::Return(cs, true);
 
